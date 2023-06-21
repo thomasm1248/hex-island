@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Hex Island</title>
+	<style>
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	overflow: hidden;
+}
+
+	</style>
+</head>
+<body>
+	<canvas id="canvas"></canvas>
+	<script src="/socket.io/socket.io.js"></script>
+	<script>
+
+
+
+// Socket setup
+var socket = io();
+
+// Globals
+var config = {
+	cellSize: 50,
+	tileSize: 28,
+	viewDist: 3
+};
+var mouse = {
+	x: 0,
+	y: 0
+};
+var map;
+
+// Util functions
+function hexDist(a, b) {
+	var d = {
+		x: b.x - a.x,
+		y: b.y - a.y
+	};
+	// Test the x and y coordinates
+	if(d.x * d.y >= 0) {
+		// If they have the same sign
+		// return the sum
+		return Math.abs(d.x + d.y);
+	} else {
+		// If they have different signs
+		// return the smallest
+		return Math.min(Math.abs(d.x), Math.abs(d.y));
+	}
+}
+function v(x, y) {
+	return {
+		x: x,
+		y: y
+	};
+}
+var hexX = v(Math.cos(-Math.PI/6), Math.sin(-Math.PI/6));
+var hexY = v(Math.cos(Math.PI/6), Math.sin(Math.PI/6));
+function hexCoords(x, y) {
+	return v(x*hexX.x + y*hexY.x, x*hexX.y + y*hexY.y);
+}
+function hexTranslate(x, y) {
+	var coords = hexCoords(x, y);
+	ctx.translate(coords.x, coords.y);
+}
+function hexMoveTo(x, y) {
+	var coords = hexCoords(x, y);
+	ctx.moveTo(coords.x, coords.y);
+}
+function hexLineTo(x, y) {
+	var coords = hexCoords(x, y);
+	ctx.lineTo(coords.x, coords.y);
+}
+
+// Game event functions
+function drawMap() {
+	ctx.save();
+	// Draw black background
+	ctx.fillStyle = "black";
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	// Move to center of screen
+	ctx.translate(canvas.width/2, canvas.height/2);
+	// Draw tiles within view
+	for(var x = -config.viewDist; x <= config.viewDist; x++) {
+		for(var y = -config.viewDist; y <= config.viewDist; y++) {
+			if(hexDist(v(0,0), v(x,y)) > config.viewDist) continue;
+			var tile = map.getCamTile(x, y);
+			ctx.save();
+			hexTranslate(x * config.cellSize, y * config.cellSize);
+			var color = "black";
+			switch(tile) {
+				case "grass":
+					color = "green";
+					break;
+				case "dirt":
+					color = "#6e4e31";//brown
+					break;
+				case "gravel":
+					color = "grey";
+					break;
+				case "stone":
+					color = "#202020";//darkgray
+					break;
+			}
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.moveTo(config.tileSize, 0);
+			for(var rot = Math.PI/3; rot < Math.PI*2; rot += Math.PI/3) {
+				ctx.lineTo(Math.cos(rot)*config.tileSize, Math.sin(rot)*config.tileSize);
+			}
+			ctx.fill();
+			ctx.restore();
+		}
+	}
+	// Draw player token
+	ctx.beginPath();
+	ctx.arc(0, 0, 20, 0, Math.PI*2);
+	ctx.fillStyle = "white";
+	ctx.strokeStyle = "black";
+	ctx.fill();
+	ctx.stroke();
+	// Finish
+	ctx.restore();
+}
+function takeAction(direction) {
+	/*switch(direction) {
+	}*/
+	socket.emit('action', direction);
+}
+
+// Map manager
+function Map(camX, camY) {
+	this.tiles = {};
+	this.cameraPos = {
+		x: camX,
+		y: camY
+	};
+}
+Map.prototype.id = function(x, y) {
+	return x + "," + y;
+};
+Map.prototype.getTile = function(x, y) {
+	var id = this.id(x, y);
+	if(this.tiles[id] === undefined) {
+		return "";
+	} else {
+		return this.tiles[id].type;
+	}
+};
+Map.prototype.getCamTile = function(x, y) {
+	var tile = this.getTile(this.cameraPos.x + x, this.cameraPos.y + y);
+	if(tile === '') {
+		socket.emit('request-tile', v(this.cameraPos.x + x, this.cameraPos.y + y));
+	}
+	return tile;
+};
+Map.prototype.setTile = function(x, y, type) {
+	this.tiles[this.id(x, y)] = {
+		type: type,
+		x: x,
+		y: y
+	};
+};
+Map.prototype.purgeTiles = function(cutoffDist) {
+	for(var id in this.tiles) {
+		if(hexDist(this.cameraPos, this.tiles[id]) > cutoffDist) {
+			delete this.tiles[id];
+		}
+	}
+};
+Map.prototype.draw = function() {
+	var viewDist = 3;
+	for(var x = -viewDist; x <=viewDist; x++) {
+		for(var y = -viewDist; y <= viewDist; y++) {
+			if(hexDist(v(x, y), v(0, 0)) <= viewDist) {
+				var tile = map.getCamTile(x, y);
+				ctx.translate // todo return
+			}
+		}
+	}
+};
+
+// Setup the canvas
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+
+// Setup game environment
+map = new Map(0,0);
+
+// Handle user input events
+window.onclick = function(e) {
+	mouse.x = e.clientX;
+	mouse.y = e.clientY;
+};
+window.onkeydown = function(e) {
+	switch(e.keyCode) {
+		case 87://w
+			takeAction("up");
+			break;
+		case 83://s
+			takeAction("down");
+			break;
+		case 65://a
+			takeAction("left-d");
+			break;
+		case 68://d
+			takeAction("right-d");
+			break;
+		case 81://q
+			takeAction("left-u");
+			break;
+		case 69://e
+			takeAction("right-u");
+			break;
+	}
+};
+
+// Socket events
+socket.on('tile', function(tile) {
+	map.setTile(tile.x, tile.y, tile.type);
+});
+socket.on('move-camera', function(pos) {
+	map.cameraPos = pos;
+});
+
+// Draw loop
+function draw() {
+	window.requestAnimationFrame(draw);
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	drawMap();
+}
+draw();
+
+
+
+	</script>
+</body>
+</html>
