@@ -50,11 +50,12 @@ function Map() {
 Map.prototype.id = function(x, y) {
 	return x + "," + y;
 };
-Map.prototype.setTile = function(x, y, type, data) {
+Map.prototype.setTile = function(x, y, type, height, data) {
 	this.tiles[this.id(x, y)] = {
 		x: x,
 		y: y,
 		type: type,
+		height: height,
 		data: data === undefined ? {} : data
 	};
 };
@@ -75,7 +76,7 @@ var temporaryTiles = ["dirt", "grass", "gravel", "stone"];
 for(var x = -20; x <= 20; x++) {
 	for(var y = -20; y <= 20; y++) {
 		if(hexDist(v(0,0), v(x,y)) <= 20) {
-			map.setTile(x, y, temporaryTiles[Math.floor(Math.random() * 4)]);
+			map.setTile(x, y, temporaryTiles[Math.floor(Math.random() * 4)], 0);
 		}
 	}
 }
