@@ -9,6 +9,7 @@ const io = new Server(server);
 // Globals
 config = {
 	loadDist: 4,
+	basicActionCooldown: 600,
 	gameDayLength: 3600000 // 1 hour in milliseconds
 };
 var map;
@@ -41,7 +42,49 @@ function Player(x, y, name, socket) {
 	this.name = name;
 	this.pos = v(x, y);
 	this.socket = socket;
+	this.actionQueue = [];
+	this.actionInProgress = false;
 }
+Player.nextAction = function(player) {
+	// Make sure there's an action in the queue
+	if(player.actionQueue.length === 0) {
+		player.actionInProgress = false;
+		return;
+	}
+	// Start action
+	player.actionInProgress = true;
+	var direction = player.actionQueue[0];
+	player.actionQueue.splice(0, 1);
+	switch(direction) {
+		case "up":
+			player.pos.x++;
+			player.pos.y--;
+			player.socket.emit('move-camera', player.pos);
+			break;
+		case "down":
+			player.pos.x--
+			player.pos.y++
+			player.socket.emit('move-camera', player.pos);
+			break;
+		case "left-d":
+			player.pos.x--
+			player.socket.emit('move-camera', player.pos);
+			break;
+		case "left-u":
+			player.pos.y--;
+			player.socket.emit('move-camera', player.pos);
+			break;
+		case "right-d":
+			player.pos.y++
+			player.socket.emit('move-camera', player.pos);
+			break;
+		case "right-u":
+			player.pos.x++;
+			player.socket.emit('move-camera', player.pos);
+			break;
+	}
+	setTimeout(Player.nextAction, config.basicActionCooldown, player);
+};
 
 // The world map
 function Map() {
@@ -115,37 +158,14 @@ io.on('connection', (socket) => {
 			}
 		}
 	});
-
+	// Setup player action queue system
 	socket.on('action', function(direction) {
-		switch(direction) {
-			case "up":
-				player.pos.x++;
-				player.pos.y--;
-				socket.emit('move-camera', player.pos);
-				break;
-			case "down":
-				player.pos.x--
-				player.pos.y++
-				socket.emit('move-camera', player.pos);
-				break;
-			case "left-d":
-				player.pos.x--
-				socket.emit('move-camera', player.pos);
-				break;
-			case "left-u":
-				player.pos.y--;
-				socket.emit('move-camera', player.pos);
-				break;
-			case "right-d":
-				player.pos.y++
-				socket.emit('move-camera', player.pos);
-				break;
-			case "right-u":
-				player.pos.x++;
-				socket.emit('move-camera', player.pos);
-				break;
+		player.actionQueue.push(direction);
+		if(!player.actionInProgress) {
+			Player.nextAction(player);
 		}
 	});
+	// Setup client tile request system
 	socket.on('request-tile', function(pos) {
 		if(hexDist(pos, player.pos) <= config.loadDist) {
 			if(map.tiles[map.id(pos.x,pos.y)] !== undefined) {
