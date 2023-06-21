@@ -8,7 +8,7 @@ const io = new Server(server);
 
 // Globals
 config = {
-	viewDist: 3
+	loadDist: 4
 };
 var map;
 var players = [];
@@ -136,7 +136,7 @@ io.on('connection', (socket) => {
 		}
 	});
 	socket.on('request-tile', function(pos) {
-		if(hexDist(pos, player.pos) <= config.viewDist) {
+		if(hexDist(pos, player.pos) <= config.loadDist) {
 			if(map.tiles[map.id(pos.x,pos.y)] !== undefined) {
 				socket.emit("tile", map.tiles[map.id(pos.x,pos.y)]);
 			}

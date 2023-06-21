@@ -29,7 +29,8 @@ var socket = io();
 var config = {
 	cellSize: 50,
 	tileSize: 28,
-	viewDist: 3
+	viewDist: 3,
+	loadDist: 4
 };
 var mouse = {
 	x: 0,
@@ -154,11 +155,7 @@ Map.prototype.getTile = function(x, y) {
 	}
 };
 Map.prototype.getCamTile = function(x, y) {
-	var tile = this.getTile(this.cameraPos.x + x, this.cameraPos.y + y);
-	if(tile === '') {
-		socket.emit('request-tile', v(this.cameraPos.x + x, this.cameraPos.y + y));
-	}
-	return tile;
+	return this.getTile(this.cameraPos.x + x, this.cameraPos.y + y);
 };
 Map.prototype.setTile = function(x, y, type) {
 	this.tiles[this.id(x, y)] = {
@@ -174,13 +171,14 @@ Map.prototype.purgeTiles = function(cutoffDist) {
 		}
 	}
 };
-Map.prototype.draw = function() {
-	var viewDist = 3;
-	for(var x = -viewDist; x <=viewDist; x++) {
-		for(var y = -viewDist; y <= viewDist; y++) {
-			if(hexDist(v(x, y), v(0, 0)) <= viewDist) {
+Map.prototype.loadTiles = function() {
+	for(var x = -config.loadDist; x <=config.loadDist; x++) {
+		for(var y = -config.loadDist; y <= config.loadDist; y++) {
+			if(hexDist(v(x, y), v(0, 0)) <= config.loadDist) {
 				var tile = map.getCamTile(x, y);
-				ctx.translate // todo return
+				if(tile === '') {
+					socket.emit('request-tile', v(this.cameraPos.x + x, this.cameraPos.y + y));
+				}
 			}
 		}
 	}
@@ -234,6 +232,7 @@ function draw() {
 	window.requestAnimationFrame(draw);
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
+	map.loadTiles();
 	drawMap();
 }
 draw();
