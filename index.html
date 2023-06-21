@@ -30,8 +30,10 @@ var config = {
 	cellSize: 50,
 	tileSize: 28,
 	viewDist: 3,
-	loadDist: 4
+	loadDist: 4,
+	mapLoadTime: 30
 };
+var mapLoadTimer = 0;
 var mouse = {
 	x: 0,
 	y: 0
@@ -231,9 +233,16 @@ socket.on('move-camera', function(pos) {
 // Draw loop
 function draw() {
 	window.requestAnimationFrame(draw);
+	// Auto-resize canvas
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
-	map.loadTiles();
+	// Load tiles
+	mapLoadTimer--;
+	if(mapLoadTimer < 0) {
+		map.loadTiles();
+		mapLoadTimer = config.mapLoadTime;
+	}
+	// Draw everything
 	drawMap();
 }
 draw();
