@@ -157,11 +157,12 @@ Map.prototype.getTile = function(x, y) {
 Map.prototype.getCamTile = function(x, y) {
 	return this.getTile(this.cameraPos.x + x, this.cameraPos.y + y);
 };
-Map.prototype.setTile = function(x, y, type) {
+Map.prototype.setTile = function(x, y, type, data) {
 	this.tiles[this.id(x, y)] = {
 		type: type,
 		x: x,
-		y: y
+		y: y,
+		data: data
 	};
 };
 Map.prototype.purgeTiles = function(cutoffDist) {
@@ -221,7 +222,7 @@ window.onkeydown = function(e) {
 
 // Socket events
 socket.on('tile', function(tile) {
-	map.setTile(tile.x, tile.y, tile.type);
+	map.setTile(tile.x, tile.y, tile.type, tile.data);
 });
 socket.on('move-camera', function(pos) {
 	map.cameraPos = pos;

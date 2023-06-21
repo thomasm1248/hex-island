@@ -45,11 +45,12 @@ function Map() {
 Map.prototype.id = function(x, y) {
 	return x + "," + y;
 };
-Map.prototype.setTile = function(x, y, type) {
+Map.prototype.setTile = function(x, y, type, data) {
 	this.tiles[this.id(x, y)] = {
 		x: x,
 		y: y,
-		type: type
+		type: type,
+		data: data === undefined ? {} : data
 	};
 };
 Map.prototype.getTile = function(x, y) {
