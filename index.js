@@ -8,9 +8,14 @@ const io = new Server(server);
 
 // Globals
 config = {
-	loadDist: 4
+	loadDist: 4,
+	gameDayLength: 3600000 // 1 hour in milliseconds
 };
 var map;
+var gameTime = {
+	day: 0,
+	hour: 9
+};
 var players = [];
 
 // Util functions
@@ -80,6 +85,8 @@ app.get('/', (req, res) => {
 	res.sendFile(__dirname + '/index.html');
 });
 
+// Game procedures
+
 // Set up new players
 io.on('connection', (socket) => {
 	// Let me know a player joined
@@ -95,6 +102,8 @@ io.on('connection', (socket) => {
 			}
 		}
 	}
+	// Give player the game time
+	socket.emit('time', gameTime);
 	// Setup disconnect procedure
 	socket.on('disconnect', () => {
 		console.log('user disconnected');
@@ -153,3 +162,21 @@ io.on('connection', (socket) => {
 server.listen(process.env.PORT || 3000, () => {
 	console.log('listening on *:3000');
 });
+
+// Setup game-time hour ticker
+function nextHour() {
+	setTimeout(nextHour, config.gameDayLength / 24);
+	gameTime.hour++;
+	if(gameTime.hour > 24) {
+		gameTime.hour = 1;
+		gameTime.day++;
+	}
+	io.emit('time', gameTime);
+}
+setTimeout(nextHour, config.gameDayLength / 24);
+
+// Simulation loop
+function simulate() {
+	setTimeout(simulate, 1000);
+}
+simulate();

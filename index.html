@@ -39,6 +39,7 @@ var mouse = {
 	y: 0
 };
 var map;
+var gameTime;
 
 // Util functions
 function hexDist(a, b) {
@@ -228,6 +229,9 @@ socket.on('tile', function(tile) {
 });
 socket.on('move-camera', function(pos) {
 	map.cameraPos = pos;
+});
+socket.on('time', function(time) {
+	gameTime = time;
 });
 
 // Draw loop
