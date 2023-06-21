@@ -18,6 +18,9 @@ var gameTime = {
 	hour: 9
 };
 var players = [];
+var entities = [];
+var entityIDCounter = 0;
+var newEntityID = () => { return entityIDCounter++; };
 
 // Util functions
 function v(x, y) {
@@ -39,12 +42,21 @@ function hexDist(a, b) {
 
 // A player character
 function Player(x, y, name, socket) {
+	this.id = newEntityID();
 	this.name = name;
 	this.pos = v(x, y);
 	this.socket = socket;
 	this.actionQueue = [];
 	this.actionInProgress = false;
 }
+Player.prototype.getEntityProfile = function() {
+	return {
+		id: this.id,
+		pos: this.pos,
+		name: this.name,
+		type: "player"
+	};
+};
 Player.nextAction = function(player) {
 	// Make sure there's an action in the queue
 	if(player.actionQueue.length === 0) {
@@ -53,9 +65,9 @@ Player.nextAction = function(player) {
 	}
 	// Start action
 	player.actionInProgress = true;
-	var direction = player.actionQueue[0];
+	var action = player.actionQueue[0];
 	player.actionQueue.splice(0, 1);
-	switch(direction) {
+	switch(action) {
 		case "up":
 			player.pos.x++;
 			player.pos.y--;
@@ -81,6 +93,9 @@ Player.nextAction = function(player) {
 		case "right-u":
 			player.pos.x++;
 			player.socket.emit('move-camera', player.pos);
+			break;
+		case "wait":
+			// todo add extra functionality when in combat
 			break;
 	}
 	setTimeout(Player.nextAction, config.basicActionCooldown, player);
@@ -138,6 +153,11 @@ io.on('connection', (socket) => {
 	// Create a new player object
 	var player = new Player(0, 0, "human", socket);
 	players.push(player);
+	entities.push(player);
+	// Give player info about their character
+	socket.emit('character-init', {
+		id: player.id
+	});
 	// Give player a map
 	for(var x = -3; x <= 3; x++) {
 		for(var y = -3; y <= 3; y++) {
@@ -159,8 +179,12 @@ io.on('connection', (socket) => {
 		}
 	});
 	// Setup player action queue system
-	socket.on('action', function(direction) {
-		player.actionQueue.push(direction);
+	socket.on('action', function(action) {
+		if(action === 'cancel') {
+			player.actionQueue = [];
+			return;
+		}
+		player.actionQueue.push(action);
 		if(!player.actionInProgress) {
 			Player.nextAction(player);
 		}
@@ -172,6 +196,16 @@ io.on('connection', (socket) => {
 				socket.emit("tile", map.tiles[map.id(pos.x,pos.y)]);
 			}
 		}
+	});
+	// Setup client entity request system
+	socket.on('request-entities', function() {
+		var nearbyEntities = [];
+		for(var i = 0; i < entities.length; i++) {
+			if(hexDist(player.pos, entities[i].pos) <= config.loadDist) {
+				nearbyEntities.push(entities[i].getEntityProfile());
+			}
+		}
+		socket.emit('entities', nearbyEntities);
 	});
 	// Template for future uses
 	socket.on('event name', (msg) => {

@@ -38,8 +38,11 @@ var mouse = {
 	x: 0,
 	y: 0
 };
+var character;
+var characterLoaded = false;
 var map;
 var gameTime;
+var entities = {};
 
 // Util functions
 function hexDist(a, b) {
@@ -122,13 +125,21 @@ function drawMap() {
 			ctx.restore();
 		}
 	}
-	// Draw player token
-	ctx.beginPath();
-	ctx.arc(0, 0, 20, 0, Math.PI*2);
-	ctx.fillStyle = "white";
-	ctx.strokeStyle = "black";
-	ctx.fill();
-	ctx.stroke();
+	// Draw entities
+	for(var i = 0; i < entities.length; i++) {
+		ctx.save();
+		hexTranslate(
+			(-map.cameraPos.x + entities[i].pos.x) * config.cellSize,
+			(-map.cameraPos.y + entities[i].pos.y) * config.cellSize
+		);
+		ctx.beginPath();
+		ctx.arc(0, 0, 20, 0, Math.PI*2);
+		ctx.fillStyle = "white";
+		ctx.strokeStyle = "black";
+		ctx.fill();
+		ctx.stroke();
+		ctx.restore();
+	}
 	// Finish
 	ctx.restore();
 }
@@ -221,12 +232,25 @@ window.onkeydown = function(e) {
 		case 69://e
 			takeAction("right-u");
 			break;
+		case 32://space
+			takeAction("wait");
+			break;
+		case 88://x
+			takeAction("cancel");
+			break;
 	}
 };
 
 // Socket events
+socket.on('character-init', function(characterInfo) {
+	character = characterInfo;
+	characterLoaded = true;
+});
 socket.on('tile', function(tile) {
 	map.setTile(tile.x, tile.y, tile.type, tile.height, tile.data);
+});
+socket.on('entities', function(updatedEntities) {
+	entities = updatedEntities;
 });
 socket.on('move-camera', function(pos) {
 	map.cameraPos = pos;
@@ -245,7 +269,15 @@ function draw() {
 	mapLoadTimer--;
 	if(mapLoadTimer < 0) {
 		map.loadTiles();
+		socket.emit('request-entities');
 		mapLoadTimer = config.mapLoadTime;
+	}
+	// Move camera to position of character
+	for(var i = 0; i < entities.length; i++) {
+		if(entities[i].id === character.id) {
+			map.cameraPos = entities[i].pos;
+			break;
+		}
 	}
 	// Draw everything
 	drawMap();
