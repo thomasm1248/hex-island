@@ -107,7 +107,7 @@ function drawMap() {
 			ctx.save();
 			hexTranslate(x, y);
 			var color = "black";
-			switch(tile) {
+			switch(tile.type) {
 				case "water":
 					color = "#172836";
 					break;
@@ -147,7 +147,8 @@ function drawMap() {
 			}
 			ctx.fill();
 			ctx.fillStyle = "black";
-			ctx.fillText(tile, -30, 0);
+			ctx.fillText(tile.type, -30, 0);
+			ctx.fillText(tile.height, -30, 15);
 			ctx.restore();
 		}
 	}
@@ -170,8 +171,6 @@ function drawMap() {
 	ctx.restore();
 }
 function takeAction(direction) {
-	/*switch(direction) {
-	}*/
 	socket.emit('action', direction);
 }
 
@@ -189,9 +188,15 @@ Map.prototype.id = function(x, y) {
 Map.prototype.getTile = function(x, y) {
 	var id = this.id(x, y);
 	if(this.tiles[id] === undefined) {
-		return "";
+		return {
+			x: x,
+			y: y,
+			height: 0,
+			type: '',
+			data: {}
+		};
 	} else {
-		return this.tiles[id].type;
+		return this.tiles[id];
 	}
 };
 Map.prototype.getCamTile = function(x, y) {
@@ -217,7 +222,7 @@ Map.prototype.loadTiles = function() {
 	for(var x = -config.loadDist; x <=config.loadDist; x++) {
 		for(var y = -config.loadDist; y <= config.loadDist; y++) {
 			if(hexDist(v(x, y), v(0, 0)) <= config.loadDist) {
-				var tile = map.getCamTile(x, y);
+				var tile = map.getCamTile(x, y).type;
 				if(tile === '') {
 					socket.emit('request-tile', v(this.cameraPos.x + x, this.cameraPos.y + y));
 				}
@@ -307,7 +312,6 @@ function draw() {
 	mapLoadTimer--;
 	if(mapLoadTimer < 0) {
 		map.loadTiles();
-		socket.emit('request-entities');
 		mapLoadTimer = config.mapLoadTime;
 	}
 	// Move camera to position of character

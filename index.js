@@ -8,6 +8,7 @@ const io = new Server(server);
 
 // Globals
 config = {
+	tickLength: 100,
 	loadDist: 4,
 	basicActionCooldown: 600,
 	gameDayLength: 3600000 // 1 hour in milliseconds
@@ -128,7 +129,12 @@ var temporaryTiles = ['sand', 'dirt', 'grass', 'shrub', 'herb', 'rocks', 'stone'
 for(var x = -20; x <= 20; x++) {
 	for(var y = -20; y <= 20; y++) {
 		if(hexDist(v(0,0), v(x,y)) <= 20) {
-			map.setTile(x, y, temporaryTiles[Math.floor(Math.random() * 9)], 0);
+			map.setTile(
+				x,
+				y,
+				temporaryTiles[Math.floor(Math.random() * 9)],
+				Math.floor(Math.random() * 5)
+			);
 		}
 	}
 }
@@ -200,16 +206,6 @@ io.on('connection', (socket) => {
 			}
 		}
 	});
-	// Setup client entity request system
-	socket.on('request-entities', function() {
-		var nearbyEntities = [];
-		for(var i = 0; i < entities.length; i++) {
-			if(hexDist(player.pos, entities[i].pos) <= config.loadDist) {
-				nearbyEntities.push(entities[i].getEntityProfile());
-			}
-		}
-		socket.emit('entities', nearbyEntities);
-	});
 	// Template for future uses
 	socket.on('event name', (msg) => {
 		io.emit('event name', msg);
@@ -235,6 +231,17 @@ setTimeout(nextHour, config.gameDayLength / 24);
 
 // Simulation loop
 function simulate() {
-	setTimeout(simulate, 1000);
+	setTimeout(simulate, config.tickLength);
+	// Send lists of entities to all players
+	for(var i = 0; i < players.length; i++) {
+		var player = players[i];
+		var nearbyEntities = [];
+		for(var i = 0; i < entities.length; i++) {
+			if(hexDist(player.pos, entities[i].pos) <= config.loadDist) {
+				nearbyEntities.push(entities[i].getEntityProfile());
+			}
+		}
+		player.socket.emit('entities', nearbyEntities);
+	}
 }
 simulate();

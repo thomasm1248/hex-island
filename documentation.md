@@ -17,7 +17,7 @@
 - Rocks
 - Stone
 - Tree trunk (what type of tree?)
-- Undergrowth
+- Undergrowth (represents area under branches)
 
 ## Hex coordinates
 
