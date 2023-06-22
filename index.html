@@ -61,7 +61,7 @@ function hexDist(a, b) {
 	} else {
 		// If they have different signs
 		// return the smallest
-		return Math.min(Math.abs(d.x), Math.abs(d.y));
+		return Math.max(Math.abs(d.x), Math.abs(d.y));
 	}
 }
 function v(x, y) {
@@ -96,6 +96,11 @@ function drawMap() {
 	// Draw black background
 	ctx.fillStyle = "black";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	// Print useful info (beginning of a HUD)
+	if(characterLoaded) {
+		ctx.fillStyle = "white";
+		ctx.fillText("Character ID: " + character.id, 10, 20);
+	}
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
 	ctx.translate(smoothShift.x, smoothShift.y);
@@ -149,11 +154,13 @@ function drawMap() {
 			ctx.fillStyle = "black";
 			ctx.fillText(tile.type, -30, 0);
 			ctx.fillText(tile.height, -30, 15);
+			ctx.fillText(hexDist(v(0,0),v(x,y)), -30, 30);
 			ctx.restore();
 		}
 	}
 	// Draw entities
 	for(var i = 0; i < entities.length; i++) {
+		if(hexDist(map.cameraPos, entities[i].pos) > config.viewDist) continue;
 		ctx.save();
 		hexTranslate(
 			-map.cameraPos.x + entities[i].pos.x,

@@ -37,7 +37,7 @@ function hexDist(a, b) {
 		return Math.abs(d.x + d.y);
 	} else {
 		// Signs are different
-		return Math.min(Math.abs(d.x), Math.abs(d.y));
+		return Math.max(Math.abs(d.x), Math.abs(d.y));
 	}
 }
 
@@ -103,13 +103,14 @@ function Map() {
 Map.prototype.id = function(x, y) {
 	return x + "," + y;
 };
-Map.prototype.setTile = function(x, y, type, height, data) {
+Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
 	this.tiles[this.id(x, y)] = {
 		x: x,
 		y: y,
 		type: type,
 		height: height,
-		data: data === undefined ? {} : data
+		data: data,
+		hiddenData: hiddenData
 	};
 };
 Map.prototype.getTile = function(x, y) {
@@ -236,9 +237,9 @@ function simulate() {
 	for(var i = 0; i < players.length; i++) {
 		var player = players[i];
 		var nearbyEntities = [];
-		for(var i = 0; i < entities.length; i++) {
-			if(hexDist(player.pos, entities[i].pos) <= config.loadDist) {
-				nearbyEntities.push(entities[i].getEntityProfile());
+		for(var j = 0; j < entities.length; j++) {
+			if(hexDist(player.pos, entities[j].pos) <= config.loadDist) {
+				nearbyEntities.push(entities[j].getEntityProfile());
 			}
 		}
 		player.socket.emit('entities', nearbyEntities);
