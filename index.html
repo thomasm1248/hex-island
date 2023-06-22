@@ -121,6 +121,8 @@ function drawMap() {
 	if(characterLoaded) {
 		ctx.fillStyle = "white";
 		ctx.fillText("Character ID: " + character.id, 10, 20);
+		ctx.fillText("Height: " + map.getCamTile(0,0).height, 10, 35);
+		ctx.fillText("Camera: " + map.cameraPos.x + ' ' + map.cameraPos.y, 10, 50);
 	}
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
@@ -312,6 +314,8 @@ window.onkeydown = function(e) {
 socket.on('character-init', function(characterInfo) {
 	character = characterInfo;
 	characterLoaded = true;
+	// Throw away tiles we already had to avoid a weird bug
+	map.purgeTiles(-1);
 });
 socket.on('tile', function(tile) {
 	map.setTile(tile.x, tile.y, tile.type, tile.height, tile.data);

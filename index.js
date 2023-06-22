@@ -5,9 +5,11 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
+const fs = require('fs');
 
 // Globals
 config = {
+	mapSize: 100, // used for map file read, and player spawning
 	tickLength: 100,
 	loadDist: 4,
 	basicActionCooldown: 600,
@@ -97,13 +99,10 @@ Player.nextAction = function(player) {
 
 // The world map
 function Map() {
-	this.tiles = {};
+	this.tiles = [];
 }
-Map.prototype.id = function(x, y) {
-	return x + "," + y;
-};
 Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
-	this.tiles[this.id(x, y)] = {
+	this.tiles[x][y] = {
 		x: x,
 		y: y,
 		type: type,
@@ -113,35 +112,37 @@ Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
 	};
 };
 Map.prototype.getTile = function(x, y) {
-	var id = this.id(x, y);
-	if(this.tiles[id] === undefined) {
+	if(x < 0 || y < 0 || x >= this.tiles.length || y >= this.tiles[x].length) {
 		return {
 			x: x,
 			y: y,
 			height: 0,
-			type: '',
+			type: 'water',
 			data: {}
 		};
 	} else {
-		return this.tiles[id];
+		return this.tiles[x][y];
 	}
 };
 
 // Game simulation procedures
 
 // Initialize world
+var data;
+try {
+	data = fs.readFileSync('map.csv', 'utf8');
+} catch (err) {
+	console.log('Map file could not be read.');
+	process.exit(1);
+}
+data = data.split('\n');
 map = new Map();
-var temporaryTiles = ['sand', 'dirt', 'grass', 'shrub', 'herb', 'rocks', 'stone', 'tree', 'undergrowth'];
-for(var x = -20; x <= 20; x++) {
-	for(var y = -20; y <= 20; y++) {
-		if(hexDist(v(0,0), v(x,y)) <= 20) {
-			map.setTile(
-				x,
-				y,
-				temporaryTiles[Math.floor(Math.random() * 9)],
-				Math.floor(Math.random() * 5)
-			);
-		}
+for(var x = 0; x < config.mapSize; x++) {
+	map.tiles.push([]);
+	for(var y = 0; y < config.mapSize; y++) {
+		var line = data[x*config.mapSize + y];
+		line = line.split(',');
+		map.setTile(x, y, line[0], line[1]);
 	}
 }
 
@@ -157,7 +158,11 @@ io.on('connection', (socket) => {
 	// Let me know a player joined
 	console.log('a player connected');
 	// Create a new player object
-	var player = new Player(0, 0, "human", socket);
+	var pos = v(
+		Math.floor(Math.random() * config.mapSize),
+		Math.floor(Math.random() * config.mapSize)
+	);
+	var player = new Player(pos.x, pos.y, "human", socket);
 	players.push(player);
 	entities.push(player);
 	// Give player info about their character
@@ -168,7 +173,7 @@ io.on('connection', (socket) => {
 	for(var x = -3; x <= 3; x++) {
 		for(var y = -3; y <= 3; y++) {
 			if(hexDist(v(0,0), v(x,y)) <= 3) {
-				socket.emit("tile", map.tiles[map.id(x,y)]);
+				socket.emit("tile", map.getTile(x,y));
 			}
 		}
 	}
@@ -199,17 +204,7 @@ io.on('connection', (socket) => {
 	// Setup client tile request system
 	socket.on('request-tile', function(pos) {
 		if(hexDist(pos, player.pos) <= config.loadDist) {
-			if(map.tiles[map.id(pos.x,pos.y)] !== undefined) {
-				socket.emit("tile", map.tiles[map.id(pos.x,pos.y)]);
-			} else {
-				socket.emit('tile', {
-					x: pos.x,
-					y: pos.y,
-					type: 'water',
-					height: 0,
-					data: {}
-				});
-			}
+			socket.emit("tile", map.getTile(pos.x,pos.y));
 		}
 	});
 	// Template for future uses
