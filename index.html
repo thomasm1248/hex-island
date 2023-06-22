@@ -70,6 +70,12 @@ function v(x, y) {
 		y: y
 	};
 }
+function addV(a, b) {
+	return v(a.x + b.x, a.y + b.y);
+}
+function subV(a, b) {
+	return v(a.x - b.x, a.y - b.y);
+}
 var hexX = v(Math.cos(-Math.PI/6), Math.sin(-Math.PI/6));
 var hexY = v(Math.cos(Math.PI/6), Math.sin(Math.PI/6));
 function hexCoords(x, y) {
@@ -89,6 +95,14 @@ function hexLineTo(x, y) {
 	var coords = hexCoords(x, y);
 	ctx.lineTo(coords.x, coords.y);
 }
+var directions = {
+	"up": v(1,-1),
+	"down": v(-1,1),
+	"left-d": v(-1,0),
+	"left-u": v(0,-1),
+	"right-d": v(0,1),
+	"right-u": v(1,0)
+};
 
 // Game event functions
 function drawMap() {
