@@ -169,10 +169,13 @@ io.on('connection', (socket) => {
 	// Let me know a player joined
 	console.log('a player connected');
 	// Create a new player object
-	var pos = v(
-		Math.floor(Math.random() * config.mapSize),
-		Math.floor(Math.random() * config.mapSize)
-	);
+	var pos = v(-1, -1); // guarenteed off the map
+	while(map.getTile(pos.x, pos.y).type !== 'grass') {
+		pos = v(
+			Math.floor(Math.random() * config.mapSize),
+			Math.floor(Math.random() * config.mapSize)
+		);
+	}
 	var player = new Player(pos.x, pos.y, "human", socket);
 	players.push(player);
 	entities.push(player);
