@@ -71,28 +71,22 @@ Player.nextAction = function(player) {
 		case "up":
 			player.pos.x++;
 			player.pos.y--;
-			player.socket.emit('move-camera', player.pos);
 			break;
 		case "down":
 			player.pos.x--
 			player.pos.y++
-			player.socket.emit('move-camera', player.pos);
 			break;
 		case "left-d":
 			player.pos.x--
-			player.socket.emit('move-camera', player.pos);
 			break;
 		case "left-u":
 			player.pos.y--;
-			player.socket.emit('move-camera', player.pos);
 			break;
 		case "right-d":
 			player.pos.y++
-			player.socket.emit('move-camera', player.pos);
 			break;
 		case "right-u":
 			player.pos.x++;
-			player.socket.emit('move-camera', player.pos);
 			break;
 		case "wait":
 			// todo add extra functionality when in combat
@@ -158,7 +152,7 @@ io.on('connection', (socket) => {
 	socket.emit('character-init', {
 		id: player.id
 	});
-	// Give player a map
+	// Give player a map and place camera
 	for(var x = -3; x <= 3; x++) {
 		for(var y = -3; y <= 3; y++) {
 			if(hexDist(v(0,0), v(x,y)) <= 3) {
@@ -166,6 +160,7 @@ io.on('connection', (socket) => {
 			}
 		}
 	}
+	socket.emit('move-camera', player.pos);
 	// Give player the game time
 	socket.emit('time', gameTime);
 	// Setup disconnect procedure

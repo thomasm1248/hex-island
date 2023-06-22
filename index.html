@@ -27,6 +27,7 @@ var socket = io();
 
 // Globals
 var config = {
+	cameraInertia: 0.95,
 	cellSize: 120,
 	tileSize: 65,
 	viewDist: 3,
@@ -40,6 +41,8 @@ var mouse = {
 };
 var character;
 var characterLoaded = false;
+var smoothShift;
+var cameraPlaced = false;
 var map;
 var gameTime;
 var entities = [];
@@ -70,6 +73,8 @@ function v(x, y) {
 var hexX = v(Math.cos(-Math.PI/6), Math.sin(-Math.PI/6));
 var hexY = v(Math.cos(Math.PI/6), Math.sin(Math.PI/6));
 function hexCoords(x, y) {
+	x *= config.cellSize;
+	y *= config.cellSize;
 	return v(x*hexX.x + y*hexY.x, x*hexX.y + y*hexY.y);
 }
 function hexTranslate(x, y) {
@@ -93,13 +98,14 @@ function drawMap() {
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
+	ctx.translate(smoothShift.x, smoothShift.y);
 	// Draw tiles within view
 	for(var x = -config.viewDist; x <= config.viewDist; x++) {
 		for(var y = -config.viewDist; y <= config.viewDist; y++) {
 			if(hexDist(v(0,0), v(x,y)) > config.viewDist) continue;
 			var tile = map.getCamTile(x, y);
 			ctx.save();
-			hexTranslate(x * config.cellSize, y * config.cellSize);
+			hexTranslate(x, y);
 			var color = "black";
 			switch(tile) {
 				case "water":
@@ -149,8 +155,8 @@ function drawMap() {
 	for(var i = 0; i < entities.length; i++) {
 		ctx.save();
 		hexTranslate(
-			(-map.cameraPos.x + entities[i].pos.x) * config.cellSize,
-			(-map.cameraPos.y + entities[i].pos.y) * config.cellSize
+			-map.cameraPos.x + entities[i].pos.x,
+			-map.cameraPos.y + entities[i].pos.y
 		);
 		ctx.beginPath();
 		ctx.arc(0, 0, 20, 0, Math.PI*2);
@@ -273,6 +279,17 @@ socket.on('entities', function(updatedEntities) {
 	entities = updatedEntities;
 });
 socket.on('move-camera', function(pos) {
+	if(cameraPlaced) {
+		var d = v(
+			pos.x - map.cameraPos.x,
+			pos.y - map.cameraPos.y
+		);
+		d = hexCoords(d.x, d.y);
+		smoothShift.x += d.x;
+		smoothShift.y += d.y;
+	} else {
+		cameraPlaced = true;
+	}
 	map.cameraPos = pos;
 });
 socket.on('time', function(time) {
@@ -280,6 +297,7 @@ socket.on('time', function(time) {
 });
 
 // Draw loop
+smoothShift = v(0, 0);
 function draw() {
 	window.requestAnimationFrame(draw);
 	// Auto-resize canvas
@@ -295,10 +313,22 @@ function draw() {
 	// Move camera to position of character
 	for(var i = 0; i < entities.length; i++) {
 		if(entities[i].id === character.id) {
+			// Prepare to smooth the camera motion
+			var d = v(
+				entities[i].pos.x - map.cameraPos.x,
+				entities[i].pos.y - map.cameraPos.y
+			);
+			d = hexCoords(d.x, d.y);
+			smoothShift.x += d.x;
+			smoothShift.y += d.y;
+			// Set camera position
 			map.cameraPos = entities[i].pos;
 			break;
 		}
 	}
+	// Smooth camera motion
+	smoothShift.x *= config.cameraInertia;
+	smoothShift.y *= config.cameraInertia;
 	// Draw everything
 	drawMap();
 }
