@@ -31,11 +31,19 @@ var config = {
 	cellSize: 120,
 	tileSize: 63,
 	steepTileSize: 50,
-	inclineShift: 10,
+	inclineShift: 20,
 	viewDist: 3,
 	loadDist: 4,
 	mapLoadTime: 10
 };
+if(false) {
+	config.cellSize = 60;
+	config.tileSize = 31;
+	config.steepTileSize = 25;
+	config.inclineShift = 5;
+	config.viewDist = 10;
+	config.loadDist = 12;
+}
 var mapLoadTimer = 0;
 var mouse = {
 	x: 0,
@@ -120,7 +128,11 @@ function drawMap() {
 	// Print useful info (beginning of a HUD)
 	if(characterLoaded) {
 		ctx.fillStyle = "white";
-		ctx.fillText("Character ID: " + character.id, 10, 20);
+		ctx.fillText("Character Name: " + character.name, 10, 20);
+		ctx.fillText("Character ID: " + character.id, 10, 35);
+		ctx.fillText("Elevation: " + map.getCamTile(0,0).height, 10, 50);
+		ctx.fillText("Camera: " + map.cameraPos.x + ' ' + map.cameraPos.y, 10, 65);
+		ctx.fillText("Day: " + gameTime.day + "  Hour: " + gameTime.hour, 10, 80);
 	}
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
@@ -182,8 +194,8 @@ function drawMap() {
 			ctx.lineWidth = 2;
 			ctx.stroke();
 			ctx.fillStyle = "black";
-			ctx.fillText(tile.type, -30, 0);
-			ctx.fillText(tile.height, -30, 15);
+			//ctx.fillText(tile.type, -30, 0);
+			//ctx.fillText(tile.height, -30, 15);
 			ctx.restore();
 		}
 	}
@@ -312,6 +324,8 @@ window.onkeydown = function(e) {
 socket.on('character-init', function(characterInfo) {
 	character = characterInfo;
 	characterLoaded = true;
+	// Throw away tiles we already had to avoid a weird bug
+	map.purgeTiles(-1);
 });
 socket.on('tile', function(tile) {
 	map.setTile(tile.x, tile.y, tile.type, tile.height, tile.data);

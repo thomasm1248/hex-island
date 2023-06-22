@@ -5,21 +5,27 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
+const fs = require('fs');
 
 // Globals
 config = {
-	tickLength: 100,
-	loadDist: 4,
-	basicActionCooldown: 600,
+	mapSize: 100, // used for map file read, and player spawning
+	tickLength: 100, // milliseconds between each tick
+	loadDist: 4, // distance players are allowed to load tiles
+	basicActionCooldown: 600, // milliseconds player must wait between basic actions
 	gameDayLength: 3600000 // 1 hour in milliseconds
 };
+if(false) {
+	config.loadDist = 12;
+}
 var map;
 var gameTime = {
 	day: 0,
 	hour: 9
 };
-var players = [];
-var entities = [];
+var players = []; // List of player characters
+var entities = []; // List of all entities including player characters
+// System for generating unique IDs for each entity
 var entityIDCounter = 0;
 var newEntityID = () => { return entityIDCounter++; };
 
@@ -46,7 +52,7 @@ function hexDist(a, b) {
 		return Math.max(Math.abs(d.x), Math.abs(d.y));
 	}
 }
-var directions = {
+var directions = { // List of vectors for each direction
 	"up": v(1,-1),
 	"down": v(-1,1),
 	"left-d": v(-1,0),
@@ -67,8 +73,18 @@ function Player(x, y, name, socket) {
 Player.prototype.canMove = function(direction) {
 	var destTilePos = addV(this.pos, directions[direction]);
 	var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
+	var blocked = false;
+	switch(destinationTile.type) {
+		case 'tree':
+			blocked = true;
+			break;
+		case 'water':
+			blocked = true;
+			break;
+	}
 	var currentTile = map.getTile(this.pos.x, this.pos.y);
-	return Math.abs(destinationTile.height - currentTile.height) <= 1;
+	if(Math.abs(destinationTile.height - currentTile.height) > 1) blocked = true;
+	return !blocked;
 };
 Player.prototype.getEntityProfile = function() {
 	return {
@@ -97,13 +113,10 @@ Player.nextAction = function(player) {
 
 // The world map
 function Map() {
-	this.tiles = {};
+	this.tiles = [];
 }
-Map.prototype.id = function(x, y) {
-	return x + "," + y;
-};
 Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
-	this.tiles[this.id(x, y)] = {
+	this.tiles[x][y] = {
 		x: x,
 		y: y,
 		type: type,
@@ -113,62 +126,69 @@ Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
 	};
 };
 Map.prototype.getTile = function(x, y) {
-	var id = this.id(x, y);
-	if(this.tiles[id] === undefined) {
+	if(x < 0 || y < 0 || x >= this.tiles.length || y >= this.tiles[x].length) {
+		// Make map act like everything off the map is made of water
 		return {
 			x: x,
 			y: y,
 			height: 0,
-			type: '',
+			type: 'water',
 			data: {}
 		};
 	} else {
-		return this.tiles[id];
+		return this.tiles[x][y];
 	}
 };
 
-// Game simulation procedures
-
-// Initialize world
+// Read map data from map file
+var data;
+try {
+	data = fs.readFileSync('map.csv', 'utf8');
+} catch (err) {
+	console.log('Map file could not be read.');
+	process.exit(1); // Terminate with error
+}
+data = data.split('\n');
 map = new Map();
-var temporaryTiles = ['sand', 'dirt', 'grass', 'shrub', 'herb', 'rocks', 'stone', 'tree', 'undergrowth'];
-for(var x = -20; x <= 20; x++) {
-	for(var y = -20; y <= 20; y++) {
-		if(hexDist(v(0,0), v(x,y)) <= 20) {
-			map.setTile(
-				x,
-				y,
-				temporaryTiles[Math.floor(Math.random() * 9)],
-				Math.floor(Math.random() * 5)
-			);
-		}
+for(var x = 0; x < config.mapSize; x++) {
+	map.tiles.push([]);
+	for(var y = 0; y < config.mapSize; y++) {
+		var line = data[x*config.mapSize + y];
+		line = line.split(',');
+		map.setTile(x, y, line[0], line[1]);
 	}
 }
 
-// Send the user the main page when they join
+// Send the user the html page when they join
 app.get('/', (req, res) => {
 	res.sendFile(__dirname + '/index.html');
 });
-
-// Game procedures
 
 // Set up new players
 io.on('connection', (socket) => {
 	// Let me know a player joined
 	console.log('a player connected');
 	// Create a new player object
-	var player = new Player(0, 0, "human", socket);
+	var pos = v(-1, -1); // guarenteed off the map
+	while(map.getTile(pos.x, pos.y).type !== 'sand') {
+		pos = v(
+			Math.floor(Math.random() * config.mapSize),
+			Math.floor(Math.random() * config.mapSize)
+		);
+	}
+	var player = new Player(pos.x, pos.y, "human", socket);
 	players.push(player);
 	entities.push(player);
 	// Give player info about their character
 	socket.emit('character-init', {
-		id: player.id
+		id: player.id,
+		name: player.name
 	});
 	// Give player a map and place camera
 	for(var x = -3; x <= 3; x++) {
 		for(var y = -3; y <= 3; y++) {
 			if(hexDist(v(0,0), v(x,y)) <= 3) {
-				socket.emit("tile", map.tiles[map.id(x,y)]);
+				socket.emit("tile", map.getTile(x,y));
 			}
 		}
 	}
@@ -199,17 +219,7 @@ io.on('connection', (socket) => {
 	// Setup client tile request system
 	socket.on('request-tile', function(pos) {
 		if(hexDist(pos, player.pos) <= config.loadDist) {
-			if(map.tiles[map.id(pos.x,pos.y)] !== undefined) {
-				socket.emit("tile", map.tiles[map.id(pos.x,pos.y)]);
-			} else {
-				socket.emit('tile', {
-					x: pos.x,
-					y: pos.y,
-					type: 'water',
-					height: 0,
-					data: {}
-				});
-			}
+			socket.emit("tile", map.getTile(pos.x,pos.y));
 		}
 	});
 	// Template for future uses
@@ -225,15 +235,21 @@ server.listen(process.env.PORT || 3000, () => {
 
 // Setup game-time hour ticker
 function nextHour() {
+	// Schedule next tick
 	setTimeout(nextHour, config.gameDayLength / 24);
+	// Increment hour
 	gameTime.hour++;
 	if(gameTime.hour > 24) {
+		// Advance to the next day
 		gameTime.hour = 1;
 		gameTime.day++;
 	}
+	// Broadcast time to players
 	io.emit('time', gameTime);
 }
 setTimeout(nextHour, config.gameDayLength / 24);
+
+// Game simulation procedures
 
 // Simulation loop
 function simulate() {
