@@ -170,7 +170,7 @@ io.on('connection', (socket) => {
 	console.log('a player connected');
 	// Create a new player object
 	var pos = v(-1, -1); // guarenteed off the map
-	while(map.getTile(pos.x, pos.y).type !== 'grass') {
+	while(map.getTile(pos.x, pos.y).type !== 'sand') {
 		pos = v(
 			Math.floor(Math.random() * config.mapSize),
 			Math.floor(Math.random() * config.mapSize)

@@ -65,7 +65,7 @@ def export():
 	file.write('\n'.join(lines))
 	file.close()
 
-# Test: generate island of sand
+# Test: generate island
 sn.random_seed()
 for x in range(0, size):
 	tiles.append([])
@@ -75,6 +75,8 @@ for x in range(0, size):
 		if height < 0:
 			height = 0
 			terrain = 'water'
+		elif height <= 1:
+			terrain = 'sand'
 		tiles[x].append({
 			'type': terrain,
 			'data': {},
@@ -84,17 +86,18 @@ for x in range(0, size):
 for i in range(0, numberOfShrubs):
 	x = r.randint(0, size-1)
 	y = r.randint(0, size-1)
-	if tiles[x][y]['type'] != 'water':
+	if tiles[x][y]['type'] == 'grass':
 		tiles[x][y]['type'] = 'shrub'
 for i in range(0, numberOfHerbs):
 	x = r.randint(0, size-1)
 	y = r.randint(0, size-1)
-	if tiles[x][y]['type'] != 'water':
+	if tiles[x][y]['type'] == 'grass':
 		tiles[x][y]['type'] = 'herb'
 for i in range(0, numberOfTrees):
 	x = r.randint(1, size-2)
 	y = r.randint(1, size-2)
 	if tiles[x][y]['type'] == 'water': continue
+	if tiles[x][y]['type'] == 'sand': continue
 	for i in range(0, leavesPerTree):
 		chosenDir = r.choice(directions)
 		leafPos = addV(v(x,y), chosenDir)
