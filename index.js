@@ -30,6 +30,12 @@ function v(x, y) {
 		y: y
 	};
 }
+function addV(a, b) {
+	return v(a.x + b.x, a.y + b.y);
+}
+function subV(a, b) {
+	return v(a.x - b.x, a.y - b.y);
+}
 function hexDist(a, b) {
 	d = v(b.x - a.x, b.y - a.y);
 	if(d.x * d.y >= 0) {
@@ -40,6 +46,14 @@ function hexDist(a, b) {
 		return Math.max(Math.abs(d.x), Math.abs(d.y));
 	}
 }
+var directions = {
+	"up": v(1,-1),
+	"down": v(-1,1),
+	"left-d": v(-1,0),
+	"left-u": v(0,-1),
+	"right-d": v(0,1),
+	"right-u": v(1,0)
+};
 
 // A player character
 function Player(x, y, name, socket) {
@@ -50,6 +64,14 @@ function Player(x, y, name, socket) {
 	this.actionQueue = [];
 	this.actionInProgress = false;
 }
+Player.prototype.canMove = function(direction) {
+	var destTilePos = addV(this.pos, directions[direction]);
+	console.log("Dir: " + JSON.stringify(directions[direction]));
+	var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
+	var currentTile = map.getTile(this.pos.x, this.pos.y);
+	console.log("Dist: " + Math.abs(destinationTile.height - currentTile.height));
+	return Math.abs(destinationTile.height - currentTile.height) <= 1;
+};
 Player.prototype.getEntityProfile = function() {
 	return {
 		id: this.id,
@@ -68,32 +90,11 @@ Player.nextAction = function(player) {
 	player.actionInProgress = true;
 	var action = player.actionQueue[0];
 	player.actionQueue.splice(0, 1);
-	switch(action) {
-		case "up":
-			player.pos.x++;
-			player.pos.y--;
-			break;
-		case "down":
-			player.pos.x--
-			player.pos.y++
-			break;
-		case "left-d":
-			player.pos.x--
-			break;
-		case "left-u":
-			player.pos.y--;
-			break;
-		case "right-d":
-			player.pos.y++
-			break;
-		case "right-u":
-			player.pos.x++;
-			break;
-		case "wait":
-			// todo add extra functionality when in combat
-			break;
-	}
+	// Schedule next action
 	setTimeout(Player.nextAction, config.basicActionCooldown, player);
+	// Complete current action
+	if(action === 'wait' || !player.canMove(action)) return;
+	player.pos = addV(player.pos, directions[action]);
 };
 
 // The world map
@@ -116,9 +117,15 @@ Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
 Map.prototype.getTile = function(x, y) {
 	var id = this.id(x, y);
 	if(this.tiles[id] === undefined) {
-		return "";
+		return {
+			x: x,
+			y: y,
+			height: 0,
+			type: '',
+			data: {}
+		};
 	} else {
-		return this.tiles[id].type;
+		return this.tiles[id];
 	}
 };
 
