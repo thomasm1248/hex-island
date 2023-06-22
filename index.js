@@ -8,6 +8,7 @@ const io = new Server(server);
 
 // Globals
 config = {
+	tickLength: 100,
 	loadDist: 4,
 	basicActionCooldown: 600,
 	gameDayLength: 3600000 // 1 hour in milliseconds
@@ -29,6 +30,12 @@ function v(x, y) {
 		y: y
 	};
 }
+function addV(a, b) {
+	return v(a.x + b.x, a.y + b.y);
+}
+function subV(a, b) {
+	return v(a.x - b.x, a.y - b.y);
+}
 function hexDist(a, b) {
 	d = v(b.x - a.x, b.y - a.y);
 	if(d.x * d.y >= 0) {
@@ -36,9 +43,17 @@ function hexDist(a, b) {
 		return Math.abs(d.x + d.y);
 	} else {
 		// Signs are different
-		return Math.min(Math.abs(d.x), Math.abs(d.y));
+		return Math.max(Math.abs(d.x), Math.abs(d.y));
 	}
 }
+var directions = {
+	"up": v(1,-1),
+	"down": v(-1,1),
+	"left-d": v(-1,0),
+	"left-u": v(0,-1),
+	"right-d": v(0,1),
+	"right-u": v(1,0)
+};
 
 // A player character
 function Player(x, y, name, socket) {
@@ -49,6 +64,12 @@ function Player(x, y, name, socket) {
 	this.actionQueue = [];
 	this.actionInProgress = false;
 }
+Player.prototype.canMove = function(direction) {
+	var destTilePos = addV(this.pos, directions[direction]);
+	var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
+	var currentTile = map.getTile(this.pos.x, this.pos.y);
+	return Math.abs(destinationTile.height - currentTile.height) <= 1;
+};
 Player.prototype.getEntityProfile = function() {
 	return {
 		id: this.id,
@@ -67,32 +88,11 @@ Player.nextAction = function(player) {
 	player.actionInProgress = true;
 	var action = player.actionQueue[0];
 	player.actionQueue.splice(0, 1);
-	switch(action) {
-		case "up":
-			player.pos.x++;
-			player.pos.y--;
-			break;
-		case "down":
-			player.pos.x--
-			player.pos.y++
-			break;
-		case "left-d":
-			player.pos.x--
-			break;
-		case "left-u":
-			player.pos.y--;
-			break;
-		case "right-d":
-			player.pos.y++
-			break;
-		case "right-u":
-			player.pos.x++;
-			break;
-		case "wait":
-			// todo add extra functionality when in combat
-			break;
-	}
+	// Schedule next action
 	setTimeout(Player.nextAction, config.basicActionCooldown, player);
+	// Complete current action
+	if(action === 'wait' || !player.canMove(action)) return;
+	player.pos = addV(player.pos, directions[action]);
 };
 
 // The world map
@@ -102,21 +102,28 @@ function Map() {
 Map.prototype.id = function(x, y) {
 	return x + "," + y;
 };
-Map.prototype.setTile = function(x, y, type, height, data) {
+Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
 	this.tiles[this.id(x, y)] = {
 		x: x,
 		y: y,
 		type: type,
 		height: height,
-		data: data === undefined ? {} : data
+		data: data,
+		hiddenData: hiddenData
 	};
 };
 Map.prototype.getTile = function(x, y) {
 	var id = this.id(x, y);
 	if(this.tiles[id] === undefined) {
-		return "";
+		return {
+			x: x,
+			y: y,
+			height: 0,
+			type: '',
+			data: {}
+		};
 	} else {
-		return this.tiles[id].type;
+		return this.tiles[id];
 	}
 };
 
@@ -128,7 +135,12 @@ var temporaryTiles = ['sand', 'dirt', 'grass', 'shrub', 'herb', 'rocks', 'stone'
 for(var x = -20; x <= 20; x++) {
 	for(var y = -20; y <= 20; y++) {
 		if(hexDist(v(0,0), v(x,y)) <= 20) {
-			map.setTile(x, y, temporaryTiles[Math.floor(Math.random() * 9)], 0);
+			map.setTile(
+				x,
+				y,
+				temporaryTiles[Math.floor(Math.random() * 9)],
+				Math.floor(Math.random() * 5)
+			);
 		}
 	}
 }
@@ -200,16 +212,6 @@ io.on('connection', (socket) => {
 			}
 		}
 	});
-	// Setup client entity request system
-	socket.on('request-entities', function() {
-		var nearbyEntities = [];
-		for(var i = 0; i < entities.length; i++) {
-			if(hexDist(player.pos, entities[i].pos) <= config.loadDist) {
-				nearbyEntities.push(entities[i].getEntityProfile());
-			}
-		}
-		socket.emit('entities', nearbyEntities);
-	});
 	// Template for future uses
 	socket.on('event name', (msg) => {
 		io.emit('event name', msg);
@@ -235,6 +237,17 @@ setTimeout(nextHour, config.gameDayLength / 24);
 
 // Simulation loop
 function simulate() {
-	setTimeout(simulate, 1000);
+	setTimeout(simulate, config.tickLength);
+	// Send lists of entities to all players
+	for(var i = 0; i < players.length; i++) {
+		var player = players[i];
+		var nearbyEntities = [];
+		for(var j = 0; j < entities.length; j++) {
+			if(hexDist(player.pos, entities[j].pos) <= config.loadDist) {
+				nearbyEntities.push(entities[j].getEntityProfile());
+			}
+		}
+		player.socket.emit('entities', nearbyEntities);
+	}
 }
 simulate();

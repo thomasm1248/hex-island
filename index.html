@@ -29,7 +29,9 @@ var socket = io();
 var config = {
 	cameraInertia: 0.95,
 	cellSize: 120,
-	tileSize: 65,
+	tileSize: 63,
+	steepTileSize: 50,
+	inclineShift: 10,
 	viewDist: 3,
 	loadDist: 4,
 	mapLoadTime: 10
@@ -61,7 +63,7 @@ function hexDist(a, b) {
 	} else {
 		// If they have different signs
 		// return the smallest
-		return Math.min(Math.abs(d.x), Math.abs(d.y));
+		return Math.max(Math.abs(d.x), Math.abs(d.y));
 	}
 }
 function v(x, y) {
@@ -69,6 +71,12 @@ function v(x, y) {
 		x: x,
 		y: y
 	};
+}
+function addV(a, b) {
+	return v(a.x + b.x, a.y + b.y);
+}
+function subV(a, b) {
+	return v(a.x - b.x, a.y - b.y);
 }
 var hexX = v(Math.cos(-Math.PI/6), Math.sin(-Math.PI/6));
 var hexY = v(Math.cos(Math.PI/6), Math.sin(Math.PI/6));
@@ -89,6 +97,19 @@ function hexLineTo(x, y) {
 	var coords = hexCoords(x, y);
 	ctx.lineTo(coords.x, coords.y);
 }
+var directions = {
+	"up": v(1,-1),
+	"down": v(-1,1),
+	"left-d": v(-1,0),
+	"left-u": v(0,-1),
+	"right-d": v(0,1),
+	"right-u": v(1,0)
+};
+function clamp(a, x, b) {
+	if(x < a) return a;
+	if(x > b) return b;
+	return x;
+}
 
 // Game event functions
 function drawMap() {
@@ -96,18 +117,24 @@ function drawMap() {
 	// Draw black background
 	ctx.fillStyle = "black";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	// Print useful info (beginning of a HUD)
+	if(characterLoaded) {
+		ctx.fillStyle = "white";
+		ctx.fillText("Character ID: " + character.id, 10, 20);
+	}
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
 	ctx.translate(smoothShift.x, smoothShift.y);
 	// Draw tiles within view
-	for(var x = -config.viewDist; x <= config.viewDist; x++) {
-		for(var y = -config.viewDist; y <= config.viewDist; y++) {
+	var currentHeight = map.getCamTile(0,0).height;
+	for(var y = -config.viewDist; y <= config.viewDist; y++) {
+		for(var x = config.viewDist; x >= -config.viewDist; x--) {
 			if(hexDist(v(0,0), v(x,y)) > config.viewDist) continue;
 			var tile = map.getCamTile(x, y);
 			ctx.save();
 			hexTranslate(x, y);
 			var color = "black";
-			switch(tile) {
+			switch(tile.type) {
 				case "water":
 					color = "#172836";
 					break;
@@ -140,19 +167,29 @@ function drawMap() {
 					break;
 			}
 			ctx.fillStyle = color;
-			ctx.beginPath();
-			ctx.moveTo(config.tileSize, 0);
+			ctx.beginPath()
+			var heightDiff = tile.height - currentHeight;
+			var size = Math.abs(heightDiff) <= 1 ?
+				config.tileSize : config.steepTileSize;
+			heightDiff = clamp(-3, heightDiff, 3);
+			ctx.translate(0, -heightDiff * config.inclineShift);
+			ctx.moveTo(size, 0);
 			for(var rot = Math.PI/3; rot < Math.PI*2; rot += Math.PI/3) {
-				ctx.lineTo(Math.cos(rot)*config.tileSize, Math.sin(rot)*config.tileSize);
+				ctx.lineTo(Math.cos(rot)*size, Math.sin(rot)*size);
 			}
 			ctx.fill();
+			ctx.strokeStyle = "black";
+			ctx.lineWidth = 2;
+			ctx.stroke();
 			ctx.fillStyle = "black";
-			ctx.fillText(tile, -30, 0);
+			ctx.fillText(tile.type, -30, 0);
+			ctx.fillText(tile.height, -30, 15);
 			ctx.restore();
 		}
 	}
 	// Draw entities
 	for(var i = 0; i < entities.length; i++) {
+		if(hexDist(map.cameraPos, entities[i].pos) > config.viewDist) continue;
 		ctx.save();
 		hexTranslate(
 			-map.cameraPos.x + entities[i].pos.x,
@@ -170,8 +207,6 @@ function drawMap() {
 	ctx.restore();
 }
 function takeAction(direction) {
-	/*switch(direction) {
-	}*/
 	socket.emit('action', direction);
 }
 
@@ -189,9 +224,15 @@ Map.prototype.id = function(x, y) {
 Map.prototype.getTile = function(x, y) {
 	var id = this.id(x, y);
 	if(this.tiles[id] === undefined) {
-		return "";
+		return {
+			x: x,
+			y: y,
+			height: 0,
+			type: '',
+			data: {}
+		};
 	} else {
-		return this.tiles[id].type;
+		return this.tiles[id];
 	}
 };
 Map.prototype.getCamTile = function(x, y) {
@@ -217,7 +258,7 @@ Map.prototype.loadTiles = function() {
 	for(var x = -config.loadDist; x <=config.loadDist; x++) {
 		for(var y = -config.loadDist; y <= config.loadDist; y++) {
 			if(hexDist(v(x, y), v(0, 0)) <= config.loadDist) {
-				var tile = map.getCamTile(x, y);
+				var tile = map.getCamTile(x, y).type;
 				if(tile === '') {
 					socket.emit('request-tile', v(this.cameraPos.x + x, this.cameraPos.y + y));
 				}
@@ -307,7 +348,6 @@ function draw() {
 	mapLoadTimer--;
 	if(mapLoadTimer < 0) {
 		map.loadTiles();
-		socket.emit('request-entities');
 		mapLoadTimer = config.mapLoadTime;
 	}
 	// Move camera to position of character
