@@ -102,17 +102,35 @@ function drawMap() {
 			hexTranslate(x * config.cellSize, y * config.cellSize);
 			var color = "black";
 			switch(tile) {
-				case "grass":
-					color = "green";
+				case "water":
+					color = "#172836";
 					break;
 				case "dirt":
-					color = "#6e4e31";//brown
+					color = "#6e4e31";
 					break;
-				case "gravel":
-					color = "grey";
+				case "sand":
+					color = "#fbedab";
 					break;
-				case "stone":
-					color = "#202020";//darkgray
+				case "grass":
+					color = "#69b42e";
+					break;
+				case "shrub":
+					color = "#2b4e10";
+					break;
+				case 'tree':
+					color = "#40301c";
+					break;
+				case 'rocks':
+					color = "#2a2a2a";
+					break;
+				case 'stone':
+					color = "#404040";
+					break;
+				case 'undergrowth':
+					color = '#23290f';
+					break;
+				case 'herb':
+					color = '#5f7a13';
 					break;
 			}
 			ctx.fillStyle = color;
@@ -122,6 +140,8 @@ function drawMap() {
 				ctx.lineTo(Math.cos(rot)*config.tileSize, Math.sin(rot)*config.tileSize);
 			}
 			ctx.fill();
+			ctx.fillStyle = "black";
+			ctx.fillText(tile, -30, 0);
 			ctx.restore();
 		}
 	}

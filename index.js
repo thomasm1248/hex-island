@@ -130,11 +130,11 @@ Map.prototype.getTile = function(x, y) {
 
 // Initialize world
 map = new Map();
-var temporaryTiles = ["dirt", "grass", "gravel", "stone"];
+var temporaryTiles = ['sand', 'dirt', 'grass', 'shrub', 'herb', 'rocks', 'stone', 'tree', 'undergrowth'];
 for(var x = -20; x <= 20; x++) {
 	for(var y = -20; y <= 20; y++) {
 		if(hexDist(v(0,0), v(x,y)) <= 20) {
-			map.setTile(x, y, temporaryTiles[Math.floor(Math.random() * 4)], 0);
+			map.setTile(x, y, temporaryTiles[Math.floor(Math.random() * 9)], 0);
 		}
 	}
 }
@@ -194,6 +194,14 @@ io.on('connection', (socket) => {
 		if(hexDist(pos, player.pos) <= config.loadDist) {
 			if(map.tiles[map.id(pos.x,pos.y)] !== undefined) {
 				socket.emit("tile", map.tiles[map.id(pos.x,pos.y)]);
+			} else {
+				socket.emit('tile', {
+					x: pos.x,
+					y: pos.y,
+					type: 'water',
+					height: 0,
+					data: {}
+				});
 			}
 		}
 	});
