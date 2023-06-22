@@ -66,10 +66,8 @@ function Player(x, y, name, socket) {
 }
 Player.prototype.canMove = function(direction) {
 	var destTilePos = addV(this.pos, directions[direction]);
-	console.log("Dir: " + JSON.stringify(directions[direction]));
 	var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
 	var currentTile = map.getTile(this.pos.x, this.pos.y);
-	console.log("Dist: " + Math.abs(destinationTile.height - currentTile.height));
 	return Math.abs(destinationTile.height - currentTile.height) <= 1;
 };
 Player.prototype.getEntityProfile = function() {
