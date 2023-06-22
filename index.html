@@ -120,9 +120,11 @@ function drawMap() {
 	// Print useful info (beginning of a HUD)
 	if(characterLoaded) {
 		ctx.fillStyle = "white";
-		ctx.fillText("Character ID: " + character.id, 10, 20);
-		ctx.fillText("Height: " + map.getCamTile(0,0).height, 10, 35);
-		ctx.fillText("Camera: " + map.cameraPos.x + ' ' + map.cameraPos.y, 10, 50);
+		ctx.fillText("Character Name: " + character.name, 10, 20);
+		ctx.fillText("Character ID: " + character.id, 10, 35);
+		ctx.fillText("Elevation: " + map.getCamTile(0,0).height, 10, 50);
+		ctx.fillText("Camera: " + map.cameraPos.x + ' ' + map.cameraPos.y, 10, 65);
+		ctx.fillText("Day: " + gameTime.day + "  Hour: " + gameTime.hour, 10, 80);
 	}
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);

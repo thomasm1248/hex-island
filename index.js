@@ -10,9 +10,9 @@ const fs = require('fs');
 // Globals
 config = {
 	mapSize: 100, // used for map file read, and player spawning
-	tickLength: 100,
-	loadDist: 4,
-	basicActionCooldown: 600,
+	tickLength: 100, // milliseconds between each tick
+	loadDist: 4, // distance players are allowed to load tiles
+	basicActionCooldown: 600, // milliseconds player must wait between basic actions
 	gameDayLength: 3600000 // 1 hour in milliseconds
 };
 var map;
@@ -20,8 +20,9 @@ var gameTime = {
 	day: 0,
 	hour: 9
 };
-var players = [];
-var entities = [];
+var players = []; // List of player characters
+var entities = []; // List of all entities including player characters
+// System for generating unique IDs for each entity
 var entityIDCounter = 0;
 var newEntityID = () => { return entityIDCounter++; };
 
@@ -48,7 +49,7 @@ function hexDist(a, b) {
 		return Math.max(Math.abs(d.x), Math.abs(d.y));
 	}
 }
-var directions = {
+var directions = { // List of vectors for each direction
 	"up": v(1,-1),
 	"down": v(-1,1),
 	"left-d": v(-1,0),
@@ -123,6 +124,7 @@ Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
 };
 Map.prototype.getTile = function(x, y) {
 	if(x < 0 || y < 0 || x >= this.tiles.length || y >= this.tiles[x].length) {
+		// Make map act like everything off the map is made of water
 		return {
 			x: x,
 			y: y,
@@ -135,15 +137,13 @@ Map.prototype.getTile = function(x, y) {
 	}
 };
 
-// Game simulation procedures
-
-// Initialize world
+// Read map data from map file
 var data;
 try {
 	data = fs.readFileSync('map.csv', 'utf8');
 } catch (err) {
 	console.log('Map file could not be read.');
-	process.exit(1);
+	process.exit(1); // Terminate with error
 }
 data = data.split('\n');
 map = new Map();
@@ -156,12 +156,10 @@ for(var x = 0; x < config.mapSize; x++) {
 	}
 }
 
-// Send the user the main page when they join
+// Send the user the html page when they join
 app.get('/', (req, res) => {
 	res.sendFile(__dirname + '/index.html');
 });
-
-// Game procedures
 
 // Set up new players
 io.on('connection', (socket) => {
@@ -177,7 +175,8 @@ io.on('connection', (socket) => {
 	entities.push(player);
 	// Give player info about their character
 	socket.emit('character-init', {
-		id: player.id
+		id: player.id,
+		name: player.name
 	});
 	// Give player a map and place camera
 	for(var x = -3; x <= 3; x++) {
@@ -230,15 +229,21 @@ server.listen(process.env.PORT || 3000, () => {
 
 // Setup game-time hour ticker
 function nextHour() {
+	// Schedule next tick
 	setTimeout(nextHour, config.gameDayLength / 24);
+	// Increment hour
 	gameTime.hour++;
 	if(gameTime.hour > 24) {
+		// Advance to the next day
 		gameTime.hour = 1;
 		gameTime.day++;
 	}
+	// Broadcast time to players
 	io.emit('time', gameTime);
 }
 setTimeout(nextHour, config.gameDayLength / 24);
+
+// Game simulation procedures
 
 // Simulation loop
 function simulate() {
