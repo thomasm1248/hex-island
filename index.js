@@ -69,8 +69,18 @@ function Player(x, y, name, socket) {
 Player.prototype.canMove = function(direction) {
 	var destTilePos = addV(this.pos, directions[direction]);
 	var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
+	var blocked = false;
+	switch(destinationTile.type) {
+		case 'tree':
+			blocked = true;
+			break;
+		case 'water':
+			blocked = true;
+			break;
+	}
 	var currentTile = map.getTile(this.pos.x, this.pos.y);
-	return Math.abs(destinationTile.height - currentTile.height) <= 1;
+	if(Math.abs(destinationTile.height - currentTile.height) > 1) blocked = true;
+	return !blocked;
 };
 Player.prototype.getEntityProfile = function() {
 	return {
