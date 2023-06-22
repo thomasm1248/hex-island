@@ -8,10 +8,19 @@ const io = new Server(server);
 
 // Globals
 config = {
-	loadDist: 4
+	loadDist: 4,
+	basicActionCooldown: 600,
+	gameDayLength: 3600000 // 1 hour in milliseconds
 };
 var map;
+var gameTime = {
+	day: 0,
+	hour: 9
+};
 var players = [];
+var entities = [];
+var entityIDCounter = 0;
+var newEntityID = () => { return entityIDCounter++; };
 
 // Util functions
 function v(x, y) {
@@ -33,10 +42,58 @@ function hexDist(a, b) {
 
 // A player character
 function Player(x, y, name, socket) {
+	this.id = newEntityID();
 	this.name = name;
 	this.pos = v(x, y);
 	this.socket = socket;
+	this.actionQueue = [];
+	this.actionInProgress = false;
 }
+Player.prototype.getEntityProfile = function() {
+	return {
+		id: this.id,
+		pos: this.pos,
+		name: this.name,
+		type: "player"
+	};
+};
+Player.nextAction = function(player) {
+	// Make sure there's an action in the queue
+	if(player.actionQueue.length === 0) {
+		player.actionInProgress = false;
+		return;
+	}
+	// Start action
+	player.actionInProgress = true;
+	var action = player.actionQueue[0];
+	player.actionQueue.splice(0, 1);
+	switch(action) {
+		case "up":
+			player.pos.x++;
+			player.pos.y--;
+			break;
+		case "down":
+			player.pos.x--
+			player.pos.y++
+			break;
+		case "left-d":
+			player.pos.x--
+			break;
+		case "left-u":
+			player.pos.y--;
+			break;
+		case "right-d":
+			player.pos.y++
+			break;
+		case "right-u":
+			player.pos.x++;
+			break;
+		case "wait":
+			// todo add extra functionality when in combat
+			break;
+	}
+	setTimeout(Player.nextAction, config.basicActionCooldown, player);
+};
 
 // The world map
 function Map() {
@@ -45,11 +102,13 @@ function Map() {
 Map.prototype.id = function(x, y) {
 	return x + "," + y;
 };
-Map.prototype.setTile = function(x, y, type) {
+Map.prototype.setTile = function(x, y, type, height, data) {
 	this.tiles[this.id(x, y)] = {
 		x: x,
 		y: y,
-		type: type
+		type: type,
+		height: height,
+		data: data === undefined ? {} : data
 	};
 };
 Map.prototype.getTile = function(x, y) {
@@ -65,11 +124,11 @@ Map.prototype.getTile = function(x, y) {
 
 // Initialize world
 map = new Map();
-var temporaryTiles = ["dirt", "grass", "gravel", "stone"];
+var temporaryTiles = ['sand', 'dirt', 'grass', 'shrub', 'herb', 'rocks', 'stone', 'tree', 'undergrowth'];
 for(var x = -20; x <= 20; x++) {
 	for(var y = -20; y <= 20; y++) {
 		if(hexDist(v(0,0), v(x,y)) <= 20) {
-			map.setTile(x, y, temporaryTiles[Math.floor(Math.random() * 4)]);
+			map.setTile(x, y, temporaryTiles[Math.floor(Math.random() * 9)], 0);
 		}
 	}
 }
@@ -79,6 +138,8 @@ app.get('/', (req, res) => {
 	res.sendFile(__dirname + '/index.html');
 });
 
+// Game procedures
+
 // Set up new players
 io.on('connection', (socket) => {
 	// Let me know a player joined
@@ -86,7 +147,12 @@ io.on('connection', (socket) => {
 	// Create a new player object
 	var player = new Player(0, 0, "human", socket);
 	players.push(player);
-	// Give player a map
+	entities.push(player);
+	// Give player info about their character
+	socket.emit('character-init', {
+		id: player.id
+	});
+	// Give player a map and place camera
 	for(var x = -3; x <= 3; x++) {
 		for(var y = -3; y <= 3; y++) {
 			if(hexDist(v(0,0), v(x,y)) <= 3) {
@@ -94,6 +160,9 @@ io.on('connection', (socket) => {
 			}
 		}
 	}
+	socket.emit('move-camera', player.pos);
+	// Give player the game time
+	socket.emit('time', gameTime);
 	// Setup disconnect procedure
 	socket.on('disconnect', () => {
 		console.log('user disconnected');
@@ -104,43 +173,42 @@ io.on('connection', (socket) => {
 			}
 		}
 	});
-
-	socket.on('action', function(direction) {
-		switch(direction) {
-			case "up":
-				player.pos.x++;
-				player.pos.y--;
-				socket.emit('move-camera', player.pos);
-				break;
-			case "down":
-				player.pos.x--
-				player.pos.y++
-				socket.emit('move-camera', player.pos);
-				break;
-			case "left-d":
-				player.pos.x--
-				socket.emit('move-camera', player.pos);
-				break;
-			case "left-u":
-				player.pos.y--;
-				socket.emit('move-camera', player.pos);
-				break;
-			case "right-d":
-				player.pos.y++
-				socket.emit('move-camera', player.pos);
-				break;
-			case "right-u":
-				player.pos.x++;
-				socket.emit('move-camera', player.pos);
-				break;
+	// Setup player action queue system
+	socket.on('action', function(action) {
+		if(action === 'cancel') {
+			player.actionQueue = [];
+			return;
+		}
+		player.actionQueue.push(action);
+		if(!player.actionInProgress) {
+			Player.nextAction(player);
 		}
 	});
+	// Setup client tile request system
 	socket.on('request-tile', function(pos) {
 		if(hexDist(pos, player.pos) <= config.loadDist) {
 			if(map.tiles[map.id(pos.x,pos.y)] !== undefined) {
 				socket.emit("tile", map.tiles[map.id(pos.x,pos.y)]);
+			} else {
+				socket.emit('tile', {
+					x: pos.x,
+					y: pos.y,
+					type: 'water',
+					height: 0,
+					data: {}
+				});
 			}
 		}
+	});
+	// Setup client entity request system
+	socket.on('request-entities', function() {
+		var nearbyEntities = [];
+		for(var i = 0; i < entities.length; i++) {
+			if(hexDist(player.pos, entities[i].pos) <= config.loadDist) {
+				nearbyEntities.push(entities[i].getEntityProfile());
+			}
+		}
+		socket.emit('entities', nearbyEntities);
 	});
 	// Template for future uses
 	socket.on('event name', (msg) => {
@@ -152,3 +220,21 @@ io.on('connection', (socket) => {
 server.listen(process.env.PORT || 3000, () => {
 	console.log('listening on *:3000');
 });
+
+// Setup game-time hour ticker
+function nextHour() {
+	setTimeout(nextHour, config.gameDayLength / 24);
+	gameTime.hour++;
+	if(gameTime.hour > 24) {
+		gameTime.hour = 1;
+		gameTime.day++;
+	}
+	io.emit('time', gameTime);
+}
+setTimeout(nextHour, config.gameDayLength / 24);
+
+// Simulation loop
+function simulate() {
+	setTimeout(simulate, 1000);
+}
+simulate();

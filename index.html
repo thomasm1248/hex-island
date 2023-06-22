@@ -27,16 +27,25 @@ var socket = io();
 
 // Globals
 var config = {
-	cellSize: 50,
-	tileSize: 28,
+	cameraInertia: 0.95,
+	cellSize: 120,
+	tileSize: 65,
 	viewDist: 3,
-	loadDist: 4
+	loadDist: 4,
+	mapLoadTime: 10
 };
+var mapLoadTimer = 0;
 var mouse = {
 	x: 0,
 	y: 0
 };
+var character;
+var characterLoaded = false;
+var smoothShift;
+var cameraPlaced = false;
 var map;
+var gameTime;
+var entities = [];
 
 // Util functions
 function hexDist(a, b) {
@@ -64,6 +73,8 @@ function v(x, y) {
 var hexX = v(Math.cos(-Math.PI/6), Math.sin(-Math.PI/6));
 var hexY = v(Math.cos(Math.PI/6), Math.sin(Math.PI/6));
 function hexCoords(x, y) {
+	x *= config.cellSize;
+	y *= config.cellSize;
 	return v(x*hexX.x + y*hexY.x, x*hexX.y + y*hexY.y);
 }
 function hexTranslate(x, y) {
@@ -87,26 +98,45 @@ function drawMap() {
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
+	ctx.translate(smoothShift.x, smoothShift.y);
 	// Draw tiles within view
 	for(var x = -config.viewDist; x <= config.viewDist; x++) {
 		for(var y = -config.viewDist; y <= config.viewDist; y++) {
 			if(hexDist(v(0,0), v(x,y)) > config.viewDist) continue;
 			var tile = map.getCamTile(x, y);
 			ctx.save();
-			hexTranslate(x * config.cellSize, y * config.cellSize);
+			hexTranslate(x, y);
 			var color = "black";
 			switch(tile) {
-				case "grass":
-					color = "green";
+				case "water":
+					color = "#172836";
 					break;
 				case "dirt":
-					color = "#6e4e31";//brown
+					color = "#6e4e31";
 					break;
-				case "gravel":
-					color = "grey";
+				case "sand":
+					color = "#fbedab";
 					break;
-				case "stone":
-					color = "#202020";//darkgray
+				case "grass":
+					color = "#69b42e";
+					break;
+				case "shrub":
+					color = "#2b4e10";
+					break;
+				case 'tree':
+					color = "#40301c";
+					break;
+				case 'rocks':
+					color = "#2a2a2a";
+					break;
+				case 'stone':
+					color = "#404040";
+					break;
+				case 'undergrowth':
+					color = '#23290f';
+					break;
+				case 'herb':
+					color = '#5f7a13';
 					break;
 			}
 			ctx.fillStyle = color;
@@ -116,16 +146,26 @@ function drawMap() {
 				ctx.lineTo(Math.cos(rot)*config.tileSize, Math.sin(rot)*config.tileSize);
 			}
 			ctx.fill();
+			ctx.fillStyle = "black";
+			ctx.fillText(tile, -30, 0);
 			ctx.restore();
 		}
 	}
-	// Draw player token
-	ctx.beginPath();
-	ctx.arc(0, 0, 20, 0, Math.PI*2);
-	ctx.fillStyle = "white";
-	ctx.strokeStyle = "black";
-	ctx.fill();
-	ctx.stroke();
+	// Draw entities
+	for(var i = 0; i < entities.length; i++) {
+		ctx.save();
+		hexTranslate(
+			-map.cameraPos.x + entities[i].pos.x,
+			-map.cameraPos.y + entities[i].pos.y
+		);
+		ctx.beginPath();
+		ctx.arc(0, 0, 20, 0, Math.PI*2);
+		ctx.fillStyle = "white";
+		ctx.strokeStyle = "black";
+		ctx.fill();
+		ctx.stroke();
+		ctx.restore();
+	}
 	// Finish
 	ctx.restore();
 }
@@ -157,11 +197,13 @@ Map.prototype.getTile = function(x, y) {
 Map.prototype.getCamTile = function(x, y) {
 	return this.getTile(this.cameraPos.x + x, this.cameraPos.y + y);
 };
-Map.prototype.setTile = function(x, y, type) {
+Map.prototype.setTile = function(x, y, type, height, data) {
 	this.tiles[this.id(x, y)] = {
 		type: type,
 		x: x,
-		y: y
+		y: y,
+		height: height,
+		data: data
 	};
 };
 Map.prototype.purgeTiles = function(cutoffDist) {
@@ -216,23 +258,78 @@ window.onkeydown = function(e) {
 		case 69://e
 			takeAction("right-u");
 			break;
+		case 32://space
+			takeAction("wait");
+			break;
+		case 88://x
+			takeAction("cancel");
+			break;
 	}
 };
 
 // Socket events
+socket.on('character-init', function(characterInfo) {
+	character = characterInfo;
+	characterLoaded = true;
+});
 socket.on('tile', function(tile) {
-	map.setTile(tile.x, tile.y, tile.type);
+	map.setTile(tile.x, tile.y, tile.type, tile.height, tile.data);
+});
+socket.on('entities', function(updatedEntities) {
+	entities = updatedEntities;
 });
 socket.on('move-camera', function(pos) {
+	if(cameraPlaced) {
+		var d = v(
+			pos.x - map.cameraPos.x,
+			pos.y - map.cameraPos.y
+		);
+		d = hexCoords(d.x, d.y);
+		smoothShift.x += d.x;
+		smoothShift.y += d.y;
+	} else {
+		cameraPlaced = true;
+	}
 	map.cameraPos = pos;
+});
+socket.on('time', function(time) {
+	gameTime = time;
 });
 
 // Draw loop
+smoothShift = v(0, 0);
 function draw() {
 	window.requestAnimationFrame(draw);
+	// Auto-resize canvas
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
-	map.loadTiles();
+	// Load tiles
+	mapLoadTimer--;
+	if(mapLoadTimer < 0) {
+		map.loadTiles();
+		socket.emit('request-entities');
+		mapLoadTimer = config.mapLoadTime;
+	}
+	// Move camera to position of character
+	for(var i = 0; i < entities.length; i++) {
+		if(entities[i].id === character.id) {
+			// Prepare to smooth the camera motion
+			var d = v(
+				entities[i].pos.x - map.cameraPos.x,
+				entities[i].pos.y - map.cameraPos.y
+			);
+			d = hexCoords(d.x, d.y);
+			smoothShift.x += d.x;
+			smoothShift.y += d.y;
+			// Set camera position
+			map.cameraPos = entities[i].pos;
+			break;
+		}
+	}
+	// Smooth camera motion
+	smoothShift.x *= config.cameraInertia;
+	smoothShift.y *= config.cameraInertia;
+	// Draw everything
 	drawMap();
 }
 draw();
