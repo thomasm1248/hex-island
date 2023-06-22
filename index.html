@@ -40,7 +40,7 @@ if(false) {
 	config.cellSize = 60;
 	config.tileSize = 31;
 	config.steepTileSize = 25;
-	config.inclineShift = 5;
+	config.inclineShift = 10;
 	config.viewDist = 10;
 	config.loadDist = 12;
 }
@@ -183,7 +183,7 @@ function drawMap() {
 			var heightDiff = tile.height - currentHeight;
 			var size = Math.abs(heightDiff) <= 1 ?
 				config.tileSize : config.steepTileSize;
-			heightDiff = clamp(-3, heightDiff, 3);
+			//heightDiff = clamp(-3, heightDiff, 3);
 			ctx.translate(0, -heightDiff * config.inclineShift);
 			ctx.moveTo(size, 0);
 			for(var rot = Math.PI/3; rot < Math.PI*2; rot += Math.PI/3) {
