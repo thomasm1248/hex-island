@@ -15,6 +15,9 @@ config = {
 	basicActionCooldown: 600, // milliseconds player must wait between basic actions
 	gameDayLength: 3600000 // 1 hour in milliseconds
 };
+if(false) {
+	config.loadDist = 12;
+}
 var map;
 var gameTime = {
 	day: 0,
