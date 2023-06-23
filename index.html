@@ -27,6 +27,9 @@ var socket = io();
 
 // Globals
 var config = {
+	tileHeightInertia: 0.70,
+	tileSizeInertia: 0.70,
+	entityInertia: 0.80,
 	cameraInertia: 0.95,
 	cellSize: 120,
 	tileSize: 63,
@@ -40,7 +43,7 @@ if(false) {
 	config.cellSize = 60;
 	config.tileSize = 31;
 	config.steepTileSize = 25;
-	config.inclineShift = 5;
+	config.inclineShift = 10;
 	config.viewDist = 10;
 	config.loadDist = 12;
 }
@@ -79,6 +82,9 @@ function v(x, y) {
 		x: x,
 		y: y
 	};
+}
+function scaleV(a, s) {
+	return v(a.x * s, a.y * s);
 }
 function addV(a, b) {
 	return v(a.x + b.x, a.y + b.y);
@@ -178,17 +184,29 @@ function drawMap() {
 					color = '#5f7a13';
 					break;
 			}
-			ctx.fillStyle = color;
 			ctx.beginPath()
 			var heightDiff = tile.height - currentHeight;
+			// Animate size change
 			var size = Math.abs(heightDiff) <= 1 ?
 				config.tileSize : config.steepTileSize;
-			heightDiff = clamp(-3, heightDiff, 3);
-			ctx.translate(0, -heightDiff * config.inclineShift);
+			var lag = tile.currentSize - size;
+			lag *= config.tileSizeInertia;
+			tile.currentSize = size + lag;
+			size = tile.currentSize;
+			// Animate height change
+			lag = tile.currentHeight - heightDiff;
+			lag *= config.tileHeightInertia;
+			tile.currentHeight = heightDiff + lag;
+			ctx.translate(0, -tile.currentHeight * config.inclineShift);
+			// Draw black rectangle underneath
+			ctx.fillStyle = 'black';
+			ctx.fillRect(-size, 0, size*2, 1000);
+			// Draw hexagon
 			ctx.moveTo(size, 0);
 			for(var rot = Math.PI/3; rot < Math.PI*2; rot += Math.PI/3) {
 				ctx.lineTo(Math.cos(rot)*size, Math.sin(rot)*size);
 			}
+			ctx.fillStyle = color;
 			ctx.fill();
 			ctx.strokeStyle = "black";
 			ctx.lineWidth = 2;
@@ -207,6 +225,7 @@ function drawMap() {
 			-map.cameraPos.x + entities[i].pos.x,
 			-map.cameraPos.y + entities[i].pos.y
 		);
+		ctx.translate(entities[i].shift.x, entities[i].shift.y);
 		ctx.beginPath();
 		ctx.arc(0, 0, 20, 0, Math.PI*2);
 		ctx.fillStyle = "white";
@@ -255,6 +274,8 @@ Map.prototype.setTile = function(x, y, type, height, data) {
 		type: type,
 		x: x,
 		y: y,
+		currentHeight: -10,
+		currentSize: 0,
 		height: height,
 		data: data
 	};
@@ -329,9 +350,23 @@ socket.on('character-init', function(characterInfo) {
 });
 socket.on('tile', function(tile) {
 	map.setTile(tile.x, tile.y, tile.type, tile.height, tile.data);
+	// todo preserve previous animation stuff
 });
 socket.on('entities', function(updatedEntities) {
+	oldEntities = entities;
 	entities = updatedEntities;
+	for(var i = 0; i < entities.length; i++) {
+		var entity = entities[i];
+		entity.shift = v(0, 0);
+		for(var j = 0; j < oldEntities.length; j++) {
+			if(entity.id === oldEntities[j].id) {
+				var newShift = subV(oldEntities[j].pos, entity.pos);
+				newShift = hexCoords(newShift.x, newShift.y);
+				entity.shift = addV(oldEntities[j].shift, newShift);
+				break;
+			}
+		}
+	}
 });
 socket.on('move-camera', function(pos) {
 	if(cameraPlaced) {
@@ -379,6 +414,17 @@ function draw() {
 			map.cameraPos = entities[i].pos;
 			break;
 		}
+	}
+	// Reset animations of tiles that moved out of range
+	for(var id in map.tiles) {
+		if(hexDist(map.cameraPos, map.tiles[id]) > config.viewDist) {
+			map.tiles[id].currentHeight = -10;
+			map.tiles[id].currentSize = 0;
+		}
+	}
+	// Smooth entity motion
+	for(var i = 0; i < entities.length; i++) {
+		entities[i].shift = scaleV(entities[i].shift, config.entityInertia);
 	}
 	// Smooth camera motion
 	smoothShift.x *= config.cameraInertia;
