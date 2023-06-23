@@ -27,7 +27,8 @@ var socket = io();
 
 // Globals
 var config = {
-	cameraInertia: 0.95,
+	entityInertia: 0.80,
+	cameraInertia: 0.97,
 	cellSize: 120,
 	tileSize: 63,
 	steepTileSize: 50,
@@ -79,6 +80,9 @@ function v(x, y) {
 		x: x,
 		y: y
 	};
+}
+function scaleV(a, s) {
+	return v(a.x * s, a.y * s);
 }
 function addV(a, b) {
 	return v(a.x + b.x, a.y + b.y);
@@ -207,6 +211,7 @@ function drawMap() {
 			-map.cameraPos.x + entities[i].pos.x,
 			-map.cameraPos.y + entities[i].pos.y
 		);
+		ctx.translate(entities[i].shift.x, entities[i].shift.y);
 		ctx.beginPath();
 		ctx.arc(0, 0, 20, 0, Math.PI*2);
 		ctx.fillStyle = "white";
@@ -331,7 +336,21 @@ socket.on('tile', function(tile) {
 	map.setTile(tile.x, tile.y, tile.type, tile.height, tile.data);
 });
 socket.on('entities', function(updatedEntities) {
+	oldEntities = entities;
 	entities = updatedEntities;
+	for(var i = 0; i < entities.length; i++) {
+		var entity = entities[i];
+		entity.shift = v(0, 0);
+		for(var j = 0; j < oldEntities.length; j++) {
+			if(entity.id === oldEntities[j].id) {
+				var newShift = subV(oldEntities[j].pos, entity.pos);
+				newShift = hexCoords(newShift.x, newShift.y);
+				entity.shift = addV(oldEntities[j].shift, newShift);
+				console.log(entity.shift);
+				break;
+			}
+		}
+	}
 });
 socket.on('move-camera', function(pos) {
 	if(cameraPlaced) {
@@ -379,6 +398,10 @@ function draw() {
 			map.cameraPos = entities[i].pos;
 			break;
 		}
+	}
+	// Smooth entity motion
+	for(var i = 0; i < entities.length; i++) {
+		entities[i].shift = scaleV(entities[i].shift, config.entityInertia);
 	}
 	// Smooth camera motion
 	smoothShift.x *= config.cameraInertia;
