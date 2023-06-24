@@ -9,14 +9,16 @@ const fs = require('fs');
 
 // Globals
 config = {
-	mapSize: 100, // used for map file read, and player spawning
+	mapSize: 1000, // used for map file read, and player spawning
 	tickLength: 100, // milliseconds between each tick
 	loadDist: 4, // distance players are allowed to load tiles
 	basicActionCooldown: 600, // milliseconds player must wait between basic actions
 	gameDayLength: 3600000 // 1 hour in milliseconds
 };
-if(false) {
+if(false) { // turn off
 	config.loadDist = 12;
+	config.basicActionCooldown = 0;
+	config.canTeleport = true;
 }
 var map;
 var gameTime = {
@@ -148,6 +150,7 @@ try {
 	console.log('Map file could not be read.');
 	process.exit(1); // Terminate with error
 }
+console.log("Reading map data");
 data = data.split('\n');
 map = new Map();
 for(var x = 0; x < config.mapSize; x++) {
@@ -158,6 +161,7 @@ for(var x = 0; x < config.mapSize; x++) {
 		map.setTile(x, y, line[0], line[1]);
 	}
 }
+console.log("Finish reading map data");
 
 // Send the user the html page when they join
 app.get('/', (req, res) => {
@@ -222,9 +226,9 @@ io.on('connection', (socket) => {
 			socket.emit("tile", map.getTile(pos.x,pos.y));
 		}
 	});
-	// Template for future uses
-	socket.on('event name', (msg) => {
-		io.emit('event name', msg);
+	// Teleportation for debugging
+	socket.on('tp', (pos) => {
+		player.pos = pos;
 	});
 });
 

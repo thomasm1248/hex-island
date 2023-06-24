@@ -3,11 +3,17 @@ import math as m
 import random as r
 
 # Presets
-size = 100
-scale = 0.2
-noiseStrength = 5
-baseHeight = 15
-falloffStrength = 0.0085
+size = 1000
+baseHeight = 30
+falloffRadius = size / 2
+# Hills and valleys
+mountainNoiseFreq = 0.030
+mountainNoiseSize = 80# might have to lower after adding roughness noise
+mountainNoiseThinned = 5
+# Calculated
+mountainNoiseThinning = 1 / falloffRadius**2 * (mountainNoiseSize - mountainNoiseThinned)
+falloffStrength = 1 / falloffRadius**2 * (baseHeight + mountainNoiseThinned)
+# Foliage
 numberOfTrees = m.floor(size**2 / 6)
 numberOfShrubs = m.floor(size**2 / 3)
 numberOfHerbs = m.floor(size**2 / 5)
@@ -46,12 +52,20 @@ hexX = v(m.cos(-m.pi/6), m.sin(-m.pi/6))
 hexY = v(m.cos(m.pi/6), m.sin(m.pi/6))
 def hexCoords(x, y):
 	return addV(scaleV(hexX, x), scaleV(hexY, y))
+def getMountainNoise(p, d):
+	p = scaleV(p, mountainNoiseFreq)
+	rawNoise = (sn.noise2(p.x, p.y) + 1)**3/8
+	maxHeight = -d * mountainNoiseThinning + mountainNoiseSize # shorter towards edges
+	return rawNoise * maxHeight
 def getHeight1(x, y):
-	pos = scaleV(hexCoords(x, y), scale)
-	base = baseHeight - ((size/2-x)**2 + (size/2-y)**2) * falloffStrength
-	rawNoise = sn.noise2(pos.x, pos.y)
-	scaledNoise = rawNoise * noiseStrength
-	totalHeight = base + scaledNoise
+	pos = hexCoords(x - size/2, y - size/2)
+	distSquared = pos.x**2 + pos.y**2 + 1 # for /0 cases
+	# Get mointain noise
+	mountainNoise = getMountainNoise(pos, distSquared)
+	# Build island shape
+	base = baseHeight - distSquared * falloffStrength
+	# Add noise
+	totalHeight = base + mountainNoise
 	return m.floor(totalHeight)
 def export():
 	file = open("map.csv", "w")

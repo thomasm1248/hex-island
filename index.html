@@ -350,7 +350,6 @@ socket.on('character-init', function(characterInfo) {
 });
 socket.on('tile', function(tile) {
 	map.setTile(tile.x, tile.y, tile.type, tile.height, tile.data);
-	// todo preserve previous animation stuff
 });
 socket.on('entities', function(updatedEntities) {
 	oldEntities = entities;
