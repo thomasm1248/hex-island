@@ -10,6 +10,8 @@ falloffRadius = size / 2
 mountainNoiseFreq = 0.030
 mountainNoiseSize = 80# might have to lower after adding roughness noise
 mountainNoiseThinned = 5
+# Biome Noise
+biomeNoiseFreq = 0.03
 # Calculated
 mountainNoiseThinning = 1 / falloffRadius**2 * (mountainNoiseSize - mountainNoiseThinned)
 falloffStrength = 1 / falloffRadius**2 * (baseHeight + mountainNoiseThinned)
@@ -66,7 +68,13 @@ def getHeight1(x, y):
 	base = baseHeight - distSquared * falloffStrength
 	# Add noise
 	totalHeight = base + mountainNoise
-	return m.floor(totalHeight)
+	return totalHeight
+def getBiomeNoise(x, y):
+	pos = hexCoords(x - size/2, y - size/2)
+	pos = scaleV(pos, biomeNoiseFreq)
+	return sn.noise2(pos.x, pos.y)
+def fadeBiome(a, h, b):
+	return r.random() * (b-a) > h - a
 def export():
 	file = open("map.csv", "w")
 	lines = []
@@ -86,11 +94,20 @@ for x in range(0, size):
 	for y in range(0, size):
 		terrain = 'grass'
 		height = getHeight1(x, y)
+		biome = getBiomeNoise(x, y)
 		if height < 0:
 			height = 0
 			terrain = 'water'
-		elif height <= 1:
+		elif fadeBiome(1, height, 2):
 			terrain = 'sand'
+		elif height + 10 * biome > 50 and not fadeBiome(40, height, 60):
+			terrain = 'stone'
+			if r.random() < 0.6:
+				terrain = 'rocks'
+			height += r.random()
+		elif biome > -0.2:
+			terrain = 'undergrowth'
+		height = m.floor(height)
 		tiles[x].append({
 			'type': terrain,
 			'data': {},
@@ -100,23 +117,25 @@ for x in range(0, size):
 for i in range(0, numberOfShrubs):
 	x = r.randint(0, size-1)
 	y = r.randint(0, size-1)
-	if tiles[x][y]['type'] == 'grass':
+	if tiles[x][y]['type'] == 'grass' or tiles[x][y]['type'] == 'undergrowth':
 		tiles[x][y]['type'] = 'shrub'
 for i in range(0, numberOfHerbs):
 	x = r.randint(0, size-1)
 	y = r.randint(0, size-1)
-	if tiles[x][y]['type'] == 'grass':
+	if tiles[x][y]['type'] == 'grass' or tiles[x][y]['type'] == 'undergrowth':
 		tiles[x][y]['type'] = 'herb'
 for i in range(0, numberOfTrees):
 	x = r.randint(1, size-2)
 	y = r.randint(1, size-2)
-	if tiles[x][y]['type'] == 'water': continue
-	if tiles[x][y]['type'] == 'sand': continue
+	if tiles[x][y]['type'] != 'undergrowth': continue
+	'''
 	for i in range(0, leavesPerTree):
 		chosenDir = r.choice(directions)
 		leafPos = addV(v(x,y), chosenDir)
 		if tiles[leafPos.x][leafPos.y]['type'] != 'water':
 			tiles[leafPos.x][leafPos.y]['type'] = 'undergrowth'
+	'''
+	# Make sure there are no trees adjacent before placing
 	adjacentTree = False
 	for ax in range(-1,2):
 		for ay in range(-1, 2):
