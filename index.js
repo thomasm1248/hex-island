@@ -13,6 +13,7 @@ config = {
 	tickLength: 100, // milliseconds between each tick
 	loadDist: 4, // distance players are allowed to load tiles
 	basicActionCooldown: 600, // milliseconds player must wait between basic actions
+	shrubMovementCost: 1200, // extra ms player must wait when moving from shrub tile
 	gameDayLength: 3600000 // 1 hour in milliseconds
 };
 if(false) {
@@ -72,6 +73,10 @@ function Player(x, y, name, socket) {
 	this.actionQueue = [];
 	this.actionInProgress = false;
 }
+Player.prototype.getNearbyTile = function(relativePos) {
+	var pos = addV(this.pos, relativePos);
+	return map.getTile(pos.x, pos.y);
+};
 Player.prototype.canMove = function(direction) {
 	var destTilePos = addV(this.pos, directions[direction]);
 	var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
@@ -106,6 +111,13 @@ Player.nextAction = function(player) {
 	player.actionInProgress = true;
 	var action = player.actionQueue[0];
 	player.actionQueue.splice(0, 1);
+	if(player.getNearbyTile(v(0,0)).type === 'S') {
+		setTimeout(Player.finishAction, config.shrubMovementCost, player, action);
+	} else {
+		Player.finishAction(player, action);
+	}
+};
+Player.finishAction = function(player, action) {
 	// Schedule next action
 	setTimeout(Player.nextAction, config.basicActionCooldown, player);
 	// Complete current action
