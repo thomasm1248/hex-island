@@ -9,13 +9,13 @@
 ### Types
 
 - Water
-- Sand
+- saNd
 - Dirt
 - Grass
 - Shrub
 - Herb (what type of plant?)
 - Rocks
-- Stone
+- stOne
 - Tree trunk (what type of tree?)
 - Undergrowth (represents area under branches)
 

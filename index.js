@@ -77,10 +77,10 @@ Player.prototype.canMove = function(direction) {
 	var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
 	var blocked = false;
 	switch(destinationTile.type) {
-		case 'tree':
+		case 'T':
 			blocked = true;
 			break;
-		case 'water':
+		case 'W':
 			blocked = true;
 			break;
 	}
@@ -134,7 +134,7 @@ Map.prototype.getTile = function(x, y) {
 			x: x,
 			y: y,
 			height: 0,
-			type: 'water',
+			type: 'W',
 			data: {}
 		};
 	} else {
@@ -174,7 +174,7 @@ io.on('connection', (socket) => {
 	console.log('a player connected');
 	// Create a new player object
 	var pos = v(-1, -1); // guarenteed off the map
-	while(map.getTile(pos.x, pos.y).type !== 'sand') {
+	while(map.getTile(pos.x, pos.y).type !== 'N') {
 		pos = v(
 			Math.floor(Math.random() * config.mapSize),
 			Math.floor(Math.random() * config.mapSize)

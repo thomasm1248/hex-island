@@ -92,21 +92,21 @@ sn.random_seed()
 for x in range(0, size):
 	tiles.append([])
 	for y in range(0, size):
-		terrain = 'grass'
+		terrain = 'G'
 		height = getHeight1(x, y)
 		biome = getBiomeNoise(x, y)
 		if height < 0:
 			height = 0
-			terrain = 'water'
+			terrain = 'W'
 		elif fadeBiome(1, height, 2):
-			terrain = 'sand'
+			terrain = 'N'
 		elif height + 10 * biome > 50 and not fadeBiome(40, height, 60):
-			terrain = 'stone'
+			terrain = 'O'
 			if r.random() < 0.6:
-				terrain = 'rocks'
+				terrain = 'R'
 			height += r.random()
 		elif biome > -0.2:
-			terrain = 'undergrowth'
+			terrain = 'U'
 		height = m.floor(height)
 		tiles[x].append({
 			'type': terrain,
@@ -117,17 +117,17 @@ for x in range(0, size):
 for i in range(0, numberOfShrubs):
 	x = r.randint(0, size-1)
 	y = r.randint(0, size-1)
-	if tiles[x][y]['type'] == 'grass' or tiles[x][y]['type'] == 'undergrowth':
-		tiles[x][y]['type'] = 'shrub'
+	if tiles[x][y]['type'] == 'G' or tiles[x][y]['type'] == 'U':
+		tiles[x][y]['type'] = 'S'
 for i in range(0, numberOfHerbs):
 	x = r.randint(0, size-1)
 	y = r.randint(0, size-1)
-	if tiles[x][y]['type'] == 'grass' or tiles[x][y]['type'] == 'undergrowth':
-		tiles[x][y]['type'] = 'herb'
+	if tiles[x][y]['type'] == 'G' or tiles[x][y]['type'] == 'U':
+		tiles[x][y]['type'] = 'H'
 for i in range(0, numberOfTrees):
 	x = r.randint(1, size-2)
 	y = r.randint(1, size-2)
-	if tiles[x][y]['type'] != 'undergrowth': continue
+	if tiles[x][y]['type'] != 'U': continue
 	'''
 	for i in range(0, leavesPerTree):
 		chosenDir = r.choice(directions)
@@ -139,10 +139,10 @@ for i in range(0, numberOfTrees):
 	adjacentTree = False
 	for ax in range(-1,2):
 		for ay in range(-1, 2):
-			if tiles[x+ax][y+ay]['type'] == 'tree':
+			if tiles[x+ax][y+ay]['type'] == 'T':
 				adjacentTree = True
 				break
 	if not adjacentTree:
-		tiles[x][y]['type'] = 'tree'
+		tiles[x][y]['type'] = 'T'
 
 export()
