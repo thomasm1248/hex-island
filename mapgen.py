@@ -5,7 +5,7 @@ import random as r
 # Presets
 size = 1000
 baseHeight = 30
-falloffRadius = size / 2
+falloffRadius = size / 2 * (3**.5 / 2)
 # Hills and valleys
 mountainNoiseFreq = 0.030
 mountainNoiseSize = 80# might have to lower after adding roughness noise
@@ -16,10 +16,7 @@ biomeNoiseFreq = 0.03
 mountainNoiseThinning = 1 / falloffRadius**2 * (mountainNoiseSize - mountainNoiseThinned)
 falloffStrength = 1 / falloffRadius**2 * (baseHeight + mountainNoiseThinned)
 # Foliage
-numberOfTrees = m.floor(size**2 / 6)
-numberOfShrubs = m.floor(size**2 / 3)
-numberOfHerbs = m.floor(size**2 / 5)
-leavesPerTree = 5
+numberOfTrees = m.floor(size**2 / 3)
 
 # Globals
 tiles = []
@@ -61,7 +58,7 @@ def getMountainNoise(p, d):
 	return rawNoise * maxHeight
 def getHeight1(x, y):
 	pos = hexCoords(x - size/2, y - size/2)
-	distSquared = pos.x**2 + pos.y**2 + 1 # for /0 cases
+	distSquared = pos.x**2 + pos.y**2
 	# Get mointain noise
 	mountainNoise = getMountainNoise(pos, distSquared)
 	# Build island shape
@@ -89,24 +86,40 @@ def export():
 
 # Test: generate island
 sn.random_seed()
+print('Generating terrain')
 for x in range(0, size):
 	tiles.append([])
 	for y in range(0, size):
-		terrain = 'G'
+		# Default: grassy field
+		terrain = r.choices(
+			['G', 'S', 'H', 'D', 'R'],
+			weights=[7, 2, 0.3, 1, 0.2]
+			)[0]
+		# Prepare biome data
 		height = getHeight1(x, y)
 		biome = getBiomeNoise(x, y)
+		# Ocean
 		if height < 0:
 			height = 0
 			terrain = 'W'
-		elif fadeBiome(1, height, 2):
+		# Beaches
+		elif fadeBiome(1, height, 1.5):
 			terrain = 'N'
-		elif height + 10 * biome > 50 and not fadeBiome(40, height, 60):
+		# Stone mountain tops
+		elif not fadeBiome(60, height + 10 * biome, 70):
 			terrain = 'O'
-			if r.random() < 0.6:
-				terrain = 'R'
+			height += r.random() * 1.5
+		# Rocks near mountain tops
+		elif not fadeBiome(45, height + 10 * biome, 55):
+			terrain = 'R'
 			height += r.random()
-		elif biome > -0.2:
-			terrain = 'U'
+		# Forests
+		elif fadeBiome(-0.2, biome, -0.17):
+			terrain = r.choices(
+				['U', 'D', 'S', 'H', 'R'],
+				weights=[10, 5, 1, 0.2, 1]
+				)[0]
+		# Build tile
 		height = m.floor(height)
 		tiles[x].append({
 			'type': terrain,
@@ -114,16 +127,7 @@ for x in range(0, size):
 			'hiddenData': {},
 			'height': height
 			})
-for i in range(0, numberOfShrubs):
-	x = r.randint(0, size-1)
-	y = r.randint(0, size-1)
-	if tiles[x][y]['type'] == 'G' or tiles[x][y]['type'] == 'U':
-		tiles[x][y]['type'] = 'S'
-for i in range(0, numberOfHerbs):
-	x = r.randint(0, size-1)
-	y = r.randint(0, size-1)
-	if tiles[x][y]['type'] == 'G' or tiles[x][y]['type'] == 'U':
-		tiles[x][y]['type'] = 'H'
+print('Planting trees')
 for i in range(0, numberOfTrees):
 	x = r.randint(1, size-2)
 	y = r.randint(1, size-2)
@@ -144,5 +148,6 @@ for i in range(0, numberOfTrees):
 				break
 	if not adjacentTree:
 		tiles[x][y]['type'] = 'T'
-
+print('Exporting to file')
 export()
+print('Done')

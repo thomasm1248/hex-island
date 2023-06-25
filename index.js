@@ -19,6 +19,7 @@ config = {
 if(false) {
 	config.loadDist = 12;
 	config.basicActionCooldown = 0;
+	config.shrubMovementCost = 0;
 	config.canTeleport = true;
 }
 var map;
