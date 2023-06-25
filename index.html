@@ -27,16 +27,18 @@ var socket = io();
 
 // Globals
 var config = {
-	tileHeightInertia: 0.70,
-	tileSizeInertia: 0.70,
-	entityInertia: 0.80,
-	cameraInertia: 0.95,
+	tileHeightInertia: 0.80,
+	tileSizeInertia: 0.90,
+	entityInertia: 0.95,
+	cameraInertia: 0.97,
 	cellSize: 120,
 	tileSize: 63,
 	steepTileSize: 50,
 	inclineShift: 20,
+	persistantDist: 5,
 	viewDist: 3,
 	loadDist: 4,
+	purgeRate: 1000,
 	mapLoadTime: 10
 };
 if(false) {
@@ -44,6 +46,7 @@ if(false) {
 	config.tileSize = 31;
 	config.steepTileSize = 25;
 	config.inclineShift = 10;
+	config.persistantDist = 20;
 	config.viewDist = 10;
 	config.loadDist = 12;
 }
@@ -55,7 +58,6 @@ var mouse = {
 var character;
 var characterLoaded = false;
 var smoothShift;
-var cameraPlaced = false;
 var map;
 var gameTime;
 var entities = [];
@@ -146,10 +148,13 @@ function drawMap() {
 	ctx.translate(smoothShift.x, smoothShift.y);
 	// Draw tiles within view
 	var currentHeight = map.getCamTile(0,0).height;
-	for(var y = -config.viewDist; y <= config.viewDist; y++) {
-		for(var x = config.viewDist; x >= -config.viewDist; x--) {
-			if(hexDist(v(0,0), v(x,y)) > config.viewDist) continue;
+	for(var y = -config.persistantDist; y <= config.persistantDist; y++) {
+		for(var x = config.persistantDist; x >= -config.persistantDist; x--) {
+			var dist = hexDist(v(0,0), v(x,y));
+			//if(dist > config.persistantDist) continue;
 			var tile = map.getCamTile(x, y);
+			//if(dist > config.viewDist && !tile.seen) continue;
+			tile.seen = true;
 			ctx.save();
 			hexTranslate(x, y);
 			var color = "black";
@@ -190,6 +195,7 @@ function drawMap() {
 			// Animate size change
 			var size = Math.abs(heightDiff) <= 1 ?
 				config.tileSize : config.steepTileSize;
+			if(dist > config.viewDist) size = 0;
 			var lag = tile.currentSize - size;
 			lag *= config.tileSizeInertia;
 			tile.currentSize = size + lag;
@@ -249,7 +255,12 @@ function Map(camX, camY) {
 		x: camX,
 		y: camY
 	};
+	Map.autoPurge(this);
 }
+Map.autoPurge = function(map) {
+	map.purgeTiles(config.persistantDist);
+	setTimeout(Map.autoPurge, config.purgeRate, map);
+};
 Map.prototype.id = function(x, y) {
 	return x + "," + y;
 };
@@ -275,7 +286,8 @@ Map.prototype.setTile = function(x, y, type, height, data) {
 		type: type,
 		x: x,
 		y: y,
-		currentHeight: -10,
+		seen: false,
+		currentHeight: 0,
 		currentSize: 0,
 		height: height,
 		data: data
@@ -369,17 +381,8 @@ socket.on('entities', function(updatedEntities) {
 	}
 });
 socket.on('move-camera', function(pos) {
-	if(cameraPlaced) {
-		var d = v(
-			pos.x - map.cameraPos.x,
-			pos.y - map.cameraPos.y
-		);
-		d = hexCoords(d.x, d.y);
-		smoothShift.x += d.x;
-		smoothShift.y += d.y;
-	} else {
-		cameraPlaced = true;
-	}
+	smoothShift.x = 0;
+	smoothShift.y = 0;
 	map.cameraPos = pos;
 });
 socket.on('time', function(time) {
@@ -413,13 +416,6 @@ function draw() {
 			// Set camera position
 			map.cameraPos = entities[i].pos;
 			break;
-		}
-	}
-	// Reset animations of tiles that moved out of range
-	for(var id in map.tiles) {
-		if(hexDist(map.cameraPos, map.tiles[id]) > config.viewDist) {
-			map.tiles[id].currentHeight = -10;
-			map.tiles[id].currentSize = 0;
 		}
 	}
 	// Smooth entity motion

@@ -13,7 +13,7 @@ config = {
 	tickLength: 100, // milliseconds between each tick
 	loadDist: 4, // distance players are allowed to load tiles
 	basicActionCooldown: 600, // milliseconds player must wait between basic actions
-	shrubMovementCost: 1200, // extra ms player must wait when moving from shrub tile
+	shrubMovementCost: 600, // extra ms player must wait when moving from shrub tile
 	gameDayLength: 3600000 // 1 hour in milliseconds
 };
 if(false) {
@@ -112,7 +112,10 @@ Player.nextAction = function(player) {
 	player.actionInProgress = true;
 	var action = player.actionQueue[0];
 	player.actionQueue.splice(0, 1);
-	if(player.getNearbyTile(v(0,0)).type === 'S') {
+	if(
+		player.getNearbyTile(v(0,0)).type === 'S' ||
+		action !== 'wait' && player.getNearbyTile(directions[action]).type === 'S'
+	) {
 		setTimeout(Player.finishAction, config.shrubMovementCost, player, action);
 	} else {
 		Player.finishAction(player, action);
