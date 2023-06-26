@@ -188,42 +188,57 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
 	// Let me know a player joined
 	console.log('a player connected');
-	// Create a new player object
-	var pos = v(-1, -1); // guarenteed off the map
-	while(map.getTile(pos.x, pos.y).type !== 'N') {
-		pos = v(
-			Math.floor(Math.random() * config.mapSize),
-			Math.floor(Math.random() * config.mapSize)
-		);
-	}
-	var player = new Player(pos.x, pos.y, "human", socket);
-	players.push(player);
-	entities.push(player);
-	// Give player info about their character
-	socket.emit('character-init', {
-		id: player.id,
-		name: player.name
-	});
-	// Give player a map and place camera
-	for(var x = -3; x <= 3; x++) {
-		for(var y = -3; y <= 3; y++) {
-			if(hexDist(v(0,0), v(x,y)) <= 3) {
-				socket.emit("tile", map.getTile(x,y));
-			}
-		}
-	}
-	socket.emit('move-camera', player.pos);
-	// Give player the game time
-	socket.emit('time', gameTime);
-	// Setup disconnect procedure
-	socket.on('disconnect', () => {
-		console.log('user disconnected');
+	// Function-scope variable for storing character current user is playing as
+	var player;
+	// Wait for player to login
+	socket.on('request-character', function(characterName) {
+		// Try to find character in current player list
+		var playerCharacterFound = false;
 		for(var i = 0; i < players.length; i++) {
-			if(players[i] === player) {
-				players.splice(i, 1);
+			if(players[i].name === characterName) {
+				playerCharacterFound = true;
+				player = players[i];
 				break;
 			}
 		}
+		// If character wasn't found, make a new one
+		if(!playerCharacterFound) {
+			console.log('Generating new player character');
+			var pos = v(-1, -1); // guarenteed off the map
+			while(map.getTile(pos.x, pos.y).type !== 'N') {
+				pos = v(
+					Math.floor(Math.random() * config.mapSize),
+					Math.floor(Math.random() * config.mapSize)
+				);
+			}
+			player = new Player(pos.x, pos.y, characterName, socket);
+			players.push(player);
+			entities.push(player);
+		}
+		// Connect socket to character
+		player.socket = socket;
+		// Give player a map and place camera
+		for(var x = -3; x <= 3; x++) {
+			for(var y = -3; y <= 3; y++) {
+				if(hexDist(v(0,0), v(x,y)) <= 3) {
+					socket.emit("tile", map.getTile(x,y));
+				}
+			}
+		}
+		// Give player info about their character
+		socket.emit('character-init', {
+			id: player.id,
+			name: player.name
+		});
+		socket.emit('move-camera', player.pos);
+		// Give player the game time
+		socket.emit('time', gameTime);
+	});
+	// Setup disconnect procedure
+	socket.on('disconnect', () => {
+		console.log('a player disconnected');
+		// Disconnect socket from character
+		player.socket = undefined;
 	});
 	// Setup player action queue system
 	socket.on('action', function(action) {
@@ -277,6 +292,9 @@ function simulate() {
 	// Send lists of entities to all players
 	for(var i = 0; i < players.length; i++) {
 		var player = players[i];
+		// Skip disconnected players
+		if(player.socket === undefined) continue;
+		// Send the player a list of nearby entities
 		var nearbyEntities = [];
 		for(var j = 0; j < entities.length; j++) {
 			if(hexDist(player.pos, entities[j].pos) <= config.loadDist) {

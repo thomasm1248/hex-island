@@ -50,6 +50,7 @@ if(false) {
 	config.viewDist = 10;
 	config.loadDist = 12;
 }
+var state;
 var mapLoadTimer = 0;
 var mouse = {
 	x: 0,
@@ -358,6 +359,7 @@ window.onkeydown = function(e) {
 socket.on('character-init', function(characterInfo) {
 	character = characterInfo;
 	characterLoaded = true;
+	state = 'playing';
 	// Throw away tiles we already had to avoid a weird bug
 	map.purgeTiles(-1);
 });
@@ -389,10 +391,8 @@ socket.on('time', function(time) {
 	gameTime = time;
 });
 
-// Draw loop
-smoothShift = v(0, 0);
-function draw() {
-	window.requestAnimationFrame(draw);
+// States
+function playing() {
 	// Auto-resize canvas
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
@@ -427,6 +427,30 @@ function draw() {
 	smoothShift.y *= config.cameraInertia;
 	// Draw everything
 	drawMap();
+}
+function menu() {
+	// Do nothing (for now)
+}
+
+// Draw loop
+smoothShift = v(0, 0);
+state = 'playing';
+// Get player name
+var characterName = '';
+while(characterName.length === 0) {
+	characterName = prompt('Enter character name:');
+}
+socket.emit('request-character', characterName);
+function draw() {
+	window.requestAnimationFrame(draw);
+	switch(state) {
+		case 'menu':
+			menu();
+			break;
+		case 'playing':
+			playing();
+			break;
+	}
 }
 draw();
 
