@@ -390,7 +390,7 @@ function startButtonClicked() {
 	var characterName = document.getElementById('character-name-input').value;
 	// Make sure it's not empty
 	if(characterName.length === 0) {
-		// todo display a message
+		// todo display a message in GUI
 		return;
 	}
 	// Submit a character request
@@ -444,6 +444,12 @@ socket.on('disconnect', function() {
 	// Setup menu screen
 	document.getElementById('menu-overlay').style.display = 'none';
 	state = 'menu';
+});
+socket.on('character-in-use', function(numPlayers) {
+	// Unlock start button
+	document.getElementById('start-button').disabled = false;
+	// Alert user
+	// todo add GUI alert
 });
 
 // States

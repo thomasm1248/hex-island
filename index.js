@@ -202,6 +202,12 @@ io.on('connection', (socket) => {
 				break;
 			}
 		}
+		// If character was found, but is in use, deny user
+		if(playerCharacterFound && player.socket !== undefined) {
+			socket.emit('character-in-use');
+			player = undefined;
+			return;
+		}
 		// If character wasn't found, make a new one
 		if(!playerCharacterFound) {
 			console.log('Generating new player character');
