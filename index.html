@@ -13,10 +13,39 @@ body {
 	overflow: hidden;
 }
 
+.overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	overflow: scroll;
+	color: white; // todo move to a separate selector
+}
+
+.overlay div {
+	padding-top: 100px;
+	width: 500px;
+	margin: 0 auto 100px;
+	text-align: center;
+}
+
+.overlay h1 {
+	color: white;
+	margin-bottom: 50px;
+}
+
 	</style>
 </head>
 <body>
 	<canvas id="canvas"></canvas>
+	<div id='menu-overlay' class='overlay'>
+		<div>
+			<h1>Hex Island</h1>
+			<input id='character-name-input' type='text' placeholder='Character Name'></input>
+			<button id='start-button' onclick='startButtonClicked()'>Start</button>
+		</div>
+	</div>
 	<script src="/socket.io/socket.io.js"></script>
 	<script>
 
@@ -60,6 +89,7 @@ var character;
 var characterLoaded = false;
 var smoothShift;
 var map;
+var playersOnline = 0;
 var gameTime;
 var entities = [];
 
@@ -143,6 +173,7 @@ function drawMap() {
 		ctx.fillText("Camera: " + map.cameraPos.x + ' ' + map.cameraPos.y, 10, 65);
 		ctx.fillText("Day: " + gameTime.day + "  Hour: " + gameTime.hour, 10, 80);
 		ctx.fillText("Tile: " + map.getCamTile(0,0).type, 10, 95);
+		ctx.fillText("Online: " + playersOnline, 10, 110);
 	}
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
@@ -354,12 +385,27 @@ window.onkeydown = function(e) {
 			break;
 	}
 };
+function startButtonClicked() {
+	// Get character name from box
+	var characterName = document.getElementById('character-name-input').value;
+	// Make sure it's not empty
+	if(characterName.length === 0) {
+		// todo display a message
+		return;
+	}
+	// Submit a character request
+	socket.emit('request-character', characterName);
+	// Lock button
+	document.getElementById('start-button').disabled = true;
+}
 
 // Socket events
 socket.on('character-init', function(characterInfo) {
 	character = characterInfo;
 	characterLoaded = true;
 	state = 'playing';
+	document.getElementById('start-button').disabled = false;
+	document.getElementById('menu-overlay').style.display = 'none';
 	// Throw away tiles we already had to avoid a weird bug
 	map.purgeTiles(-1);
 });
@@ -390,12 +436,18 @@ socket.on('move-camera', function(pos) {
 socket.on('time', function(time) {
 	gameTime = time;
 });
+socket.on('players-online', function(numPlayers) {
+	playersOnline = numPlayers;
+});
+socket.on('disconnect', function() {
+	characterLoaded = false;
+	// Setup menu screen
+	document.getElementById('menu-overlay').style.display = 'none';
+	state = 'menu';
+});
 
 // States
 function playing() {
-	// Auto-resize canvas
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
 	// Load tiles
 	mapLoadTimer--;
 	if(mapLoadTimer < 0) {
@@ -429,20 +481,19 @@ function playing() {
 	drawMap();
 }
 function menu() {
-	// Do nothing (for now)
+	ctx.fillStyle = 'black';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 // Draw loop
 smoothShift = v(0, 0);
-state = 'playing';
-// Get player name
-var characterName = '';
-while(characterName.length === 0) {
-	characterName = prompt('Enter character name:');
-}
-socket.emit('request-character', characterName);
+state = 'menu';
 function draw() {
 	window.requestAnimationFrame(draw);
+	// Auto-resize canvas
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	// Run specific state function
 	switch(state) {
 		case 'menu':
 			menu();

@@ -27,6 +27,7 @@ var gameTime = {
 	day: 0,
 	hour: 9
 };
+var playersOnline = 0; // Keep count of active players
 var players = []; // List of player characters
 var entities = []; // List of all entities including player characters
 // System for generating unique IDs for each entity
@@ -233,15 +234,24 @@ io.on('connection', (socket) => {
 		socket.emit('move-camera', player.pos);
 		// Give player the game time
 		socket.emit('time', gameTime);
+		// Increment number of active players
+		playersOnline++;
+		io.emit('players-online', playersOnline);
 	});
 	// Setup disconnect procedure
 	socket.on('disconnect', () => {
+		// Check if player has a character loaded
+		if(player === undefined) return;
+		// Print message
 		console.log('a player disconnected');
 		// Disconnect socket from character
 		player.socket = undefined;
 	});
 	// Setup player action queue system
 	socket.on('action', function(action) {
+		// Check if player has a character loaded
+		if(player === undefined) return;
+		// Queue requested action
 		if(action === 'cancel') {
 			player.actionQueue = [];
 			return;
@@ -253,12 +263,18 @@ io.on('connection', (socket) => {
 	});
 	// Setup client tile request system
 	socket.on('request-tile', function(pos) {
+		// Check if player has a character loaded
+		if(player === undefined) return;
+		// Send the player the tile if it's within their view
 		if(hexDist(pos, player.pos) <= config.loadDist) {
 			socket.emit("tile", map.getTile(pos.x,pos.y));
 		}
 	});
 	// Teleportation for debugging
 	socket.on('tp', (pos) => {
+		// Check if player has a character loaded
+		if(player === undefined) return;
+		// Teleport the player
 		player.pos = pos;
 	});
 });
