@@ -248,6 +248,9 @@ io.on('connection', (socket) => {
 	socket.on('disconnect', () => {
 		// Check if player has a character loaded
 		if(player === undefined) return;
+		// Update count of active players
+		playersOnline--;
+		io.emit('players-online', playersOnline);
 		// Print message
 		console.log('a player disconnected');
 		// Disconnect socket from character

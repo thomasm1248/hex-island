@@ -439,12 +439,6 @@ socket.on('time', function(time) {
 socket.on('players-online', function(numPlayers) {
 	playersOnline = numPlayers;
 });
-socket.on('disconnect', function() {
-	characterLoaded = false;
-	// Setup menu screen
-	document.getElementById('menu-overlay').style.display = 'none';
-	state = 'menu';
-});
 socket.on('character-in-use', function(numPlayers) {
 	// Unlock start button
 	document.getElementById('start-button').disabled = false;
