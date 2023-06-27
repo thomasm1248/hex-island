@@ -56,9 +56,10 @@ var socket = io();
 
 // Globals
 var config = {
-	tileHeightInertia: 0.95,
+	cameraHeightInertia: 0.95,
 	tileSizeInertia: 0.90,
 	entityInertia: 0.95,
+	entityHeightInertia: 0.95,
 	cameraInertia: 0.97,
 	cellSize: 120,
 	tileSize: 63,
@@ -178,6 +179,7 @@ function drawMap() {
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
 	ctx.translate(smoothShift.x, smoothShift.y);
+	ctx.translate(0, -map.heightShift);
 	// Draw tiles within view
 	var currentHeight = map.getCamTile(0,0).height;
 	for(var y = -config.persistantDist; y <= config.persistantDist; y++) {
@@ -223,8 +225,8 @@ function drawMap() {
 					break;
 			}
 			ctx.beginPath()
-			var heightDiff = tile.height - currentHeight;
 			// Animate size change
+			var heightDiff = tile.height - currentHeight;
 			var size = Math.abs(heightDiff) <= 1 ?
 				config.tileSize : config.steepTileSize;
 			if(dist > config.viewDist) size = 0;
@@ -232,11 +234,8 @@ function drawMap() {
 			lag *= config.tileSizeInertia;
 			tile.currentSize = size + lag;
 			size = tile.currentSize;
-			// Animate height change
-			lag = tile.currentHeight - heightDiff;
-			lag *= config.tileHeightInertia;
-			tile.currentHeight = heightDiff + lag;
-			ctx.translate(0, -tile.currentHeight * config.inclineShift);
+			// Shift tile up or down to match height
+			ctx.translate(0, -(heightDiff * config.inclineShift));
 			// Draw black rectangle underneath
 			ctx.fillStyle = 'black';
 			ctx.fillRect(-size, 0, size*2, 1000);
@@ -257,6 +256,7 @@ function drawMap() {
 		}
 	}
 	// Draw entities
+	// use currentHeight from above (current height of camera)
 	for(var i = 0; i < entities.length; i++) {
 		if(hexDist(map.cameraPos, entities[i].pos) > config.viewDist) continue;
 		ctx.save();
@@ -265,6 +265,8 @@ function drawMap() {
 			-map.cameraPos.y + entities[i].pos.y
 		);
 		ctx.translate(entities[i].shift.x, entities[i].shift.y);
+		var relHeight = (entities[i].height - currentHeight) * config.inclineShift;
+		ctx.translate(0, -(entities[i].heightShift + relHeight));
 		ctx.beginPath();
 		ctx.arc(0, 0, 20, 0, Math.PI*2);
 		ctx.fillStyle = "white";
@@ -287,6 +289,7 @@ function Map(camX, camY) {
 		x: camX,
 		y: camY
 	};
+	this.heightShift = 0;
 	Map.autoPurge(this);
 }
 Map.autoPurge = function(map) {
@@ -419,13 +422,16 @@ socket.on('entities', function(updatedEntities) {
 	for(var i = 0; i < entities.length; i++) {
 		var entity = entities[i];
 		entity.shift = v(0, 0);
-		var tileUnderEntity = map.getTile(entity.pos.x, entity.pos.y);
-		entity.heightShift = (cameraHeight - tileUnderEntity.height) * config.inclineShift;
+		entity.height = map.getTile(entity.pos.x, entity.pos.y).height;
+		entity.heightShift = 0;
 		for(var j = 0; j < oldEntities.length; j++) {
 			if(entity.id === oldEntities[j].id) {
 				var newShift = subV(oldEntities[j].pos, entity.pos);
 				newShift = hexCoords(newShift.x, newShift.y);
 				entity.shift = addV(oldEntities[j].shift, newShift);
+				var newHeightShift = oldEntities[j].height - entity.height;
+				newHeightShift *= config.inclineShift;
+				entity.heightShift = oldEntities[j].heightShift + newHeightShift;
 				break;
 			}
 		}
@@ -460,25 +466,29 @@ function playing() {
 	// Move camera to position of character
 	for(var i = 0; i < entities.length; i++) {
 		if(entities[i].id === character.id) {
+			var e = entities[i].pos;
 			// Prepare to smooth the camera motion
-			var d = subV(entities[i].pos, map.cameraPos);
+			var d = subV(e, map.cameraPos);
 			d = hexCoords(d.x, d.y);
 			smoothShift.x += d.x;
 			smoothShift.y += d.y;
+			// Add changes in height to height shift
+			var dh = map.getCamTile(0,0).height - map.getTile(e.x, e.y).height;
+			map.heightShift -= dh * config.inclineShift;
 			// Set camera position
-			map.cameraPos = entities[i].pos;
+			map.cameraPos = e;
 			break;
 		}
 	}
 	// Smooth entity motion
 	for(var i = 0; i < entities.length; i++) {
-		entities[i].shift.y -= entities[i].heightShift;
 		entities[i].shift = scaleV(entities[i].shift, config.entityInertia);
-		entities[i].shift.y += entities[i].heightShift;
+		entities[i].heightShift *= config.entityHeightInertia;
 	}
 	// Smooth camera motion
 	smoothShift.x *= config.cameraInertia;
 	smoothShift.y *= config.cameraInertia;
+	map.heightShift *= config.cameraHeightInertia;
 	// Draw everything
 	drawMap();
 }
