@@ -83,6 +83,7 @@ Player.prototype.canMove = function(direction) {
 	var destTilePos = addV(this.pos, directions[direction]);
 	var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
 	var blocked = false;
+	// Check for a tile type that isn't allowed
 	switch(destinationTile.type) {
 		case 'T':
 			blocked = true;
@@ -91,8 +92,17 @@ Player.prototype.canMove = function(direction) {
 			blocked = true;
 			break;
 	}
+	// Check for steep terrain
 	var currentTile = map.getTile(this.pos.x, this.pos.y);
 	if(Math.abs(destinationTile.height - currentTile.height) > 1) blocked = true;
+	// Check for an entity
+	for(var i = 0; i < entities.length; i++) {
+		if(hexDist(entities[i].pos, destTilePos) === 0) {
+			blocked = true;
+			break;
+		}
+	}
+	// Return result
 	return !blocked;
 };
 Player.prototype.getEntityProfile = function() {
@@ -211,12 +221,25 @@ io.on('connection', (socket) => {
 		// If character wasn't found, make a new one
 		if(!playerCharacterFound) {
 			console.log('Generating new player character');
-			var pos = v(-1, -1); // guarenteed off the map
-			while(map.getTile(pos.x, pos.y).type !== 'N') {
+			var pos = v(0,0);
+			var sharingTileWithEntity = true; // flag
+			while(
+				map.getTile(pos.x, pos.y).type !== 'N' ||
+				sharingTileWithEntity
+			) {
+				// Generate a new spawn point
 				pos = v(
 					Math.floor(Math.random() * config.mapSize),
 					Math.floor(Math.random() * config.mapSize)
 				);
+				// Check if there's already an entity there
+				sharingTileWithEntity = false;
+				for(var i = 0; i < entities.length; i++) {
+					if(hexDist(pos, entities[i].pos) === 0) {
+						sharingTileWithEntity = true;
+						break;
+					}
+				}
 			}
 			player = new Player(pos.x, pos.y, characterName, socket);
 			players.push(player);
