@@ -56,7 +56,7 @@ var socket = io();
 
 // Globals
 var config = {
-	tileHeightInertia: 0.80,
+	tileHeightInertia: 0.95,
 	tileSizeInertia: 0.90,
 	entityInertia: 0.95,
 	cameraInertia: 0.97,
@@ -321,7 +321,7 @@ Map.prototype.setTile = function(x, y, type, height, data) {
 		seen: false,
 		currentHeight: 0,
 		currentSize: 0,
-		height: height,
+		height: height * 1, // convert from string for whatever reason
 		data: data
 	};
 };
@@ -415,9 +415,12 @@ socket.on('tile', function(tile) {
 socket.on('entities', function(updatedEntities) {
 	oldEntities = entities;
 	entities = updatedEntities;
+	var cameraHeight = map.getCamTile(0,0).height;
 	for(var i = 0; i < entities.length; i++) {
 		var entity = entities[i];
 		entity.shift = v(0, 0);
+		var tileUnderEntity = map.getTile(entity.pos.x, entity.pos.y);
+		entity.heightShift = (cameraHeight - tileUnderEntity.height) * config.inclineShift;
 		for(var j = 0; j < oldEntities.length; j++) {
 			if(entity.id === oldEntities[j].id) {
 				var newShift = subV(oldEntities[j].pos, entity.pos);
@@ -428,7 +431,7 @@ socket.on('entities', function(updatedEntities) {
 		}
 	}
 });
-socket.on('move-camera', function(pos) {
+socket.on('set-camera', function(pos) {
 	smoothShift.x = 0;
 	smoothShift.y = 0;
 	map.cameraPos = pos;
@@ -458,10 +461,7 @@ function playing() {
 	for(var i = 0; i < entities.length; i++) {
 		if(entities[i].id === character.id) {
 			// Prepare to smooth the camera motion
-			var d = v(
-				entities[i].pos.x - map.cameraPos.x,
-				entities[i].pos.y - map.cameraPos.y
-			);
+			var d = subV(entities[i].pos, map.cameraPos);
 			d = hexCoords(d.x, d.y);
 			smoothShift.x += d.x;
 			smoothShift.y += d.y;
@@ -472,7 +472,9 @@ function playing() {
 	}
 	// Smooth entity motion
 	for(var i = 0; i < entities.length; i++) {
+		entities[i].shift.y -= entities[i].heightShift;
 		entities[i].shift = scaleV(entities[i].shift, config.entityInertia);
+		entities[i].shift.y += entities[i].heightShift;
 	}
 	// Smooth camera motion
 	smoothShift.x *= config.cameraInertia;

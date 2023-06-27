@@ -237,7 +237,7 @@ io.on('connection', (socket) => {
 			id: player.id,
 			name: player.name
 		});
-		socket.emit('move-camera', player.pos);
+		socket.emit('set-camera', player.pos);
 		// Give player the game time
 		socket.emit('time', gameTime);
 		// Increment number of active players
