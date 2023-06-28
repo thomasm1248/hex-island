@@ -74,7 +74,26 @@ function Player(x, y, name, socket) {
 	this.socket = socket;
 	this.actionQueue = [];
 	this.actionInProgress = false;
+	this.inventory = {};
 }
+Player.prototype.addItem = function(itemName, count=1) {
+	if(this.inventory[itemName] === undefined) {
+		this.inventory[itemName] = count;
+	} else {
+		this.inventory[itemName] += count;
+	}
+};
+Player.prototype.removeItem = function(itemName, count=1) {
+	if(this.inventory[itemName] === undefined) {
+		return false;
+	} else if(this.inventory[itemName] - count < 0) {
+		return false;
+	} else if(this.inventory[itemName] - count === 0) {
+		delete this.inventory[itemName];
+	} else {
+		this.inventory[itemName] -= count;
+	}
+};
 Player.prototype.getNearbyTile = function(relativePos) {
 	var pos = addV(this.pos, relativePos);
 	return map.getTile(pos.x, pos.y);
@@ -258,7 +277,8 @@ io.on('connection', (socket) => {
 		// Give player info about their character
 		socket.emit('character-init', {
 			id: player.id,
-			name: player.name
+			name: player.name,
+			inventory: player.inventory
 		});
 		socket.emit('set-camera', player.pos);
 		// Give player the game time
