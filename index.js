@@ -74,24 +74,35 @@ function Player(x, y, name, socket) {
 	this.socket = socket;
 	this.actionQueue = [];
 	this.actionInProgress = false;
-	this.inventory = {};
+	this.inventory = ['', '', '', '', '', '', ''];
 }
-Player.prototype.addItem = function(itemName, count=1) {
-	if(this.inventory[itemName] === undefined) {
-		this.inventory[itemName] = count;
-	} else {
-		this.inventory[itemName] += count;
-	}
-};
-Player.prototype.removeItem = function(itemName, count=1) {
-	if(this.inventory[itemName] === undefined) {
-		return false;
-	} else if(this.inventory[itemName] - count < 0) {
-		return false;
-	} else if(this.inventory[itemName] - count === 0) {
-		delete this.inventory[itemName];
-	} else {
-		this.inventory[itemName] -= count;
+Player.prototype.swapInventoryItems = function(direction) {
+	var inHand = this.inventory[0];
+	switch(direction) {	
+		case 'up':
+			this.inventory[0] = this.inventory[1];
+			this.inventory[1] = inHand;
+			break;
+		case 'right-u':
+			this.inventory[0] = this.inventory[2];
+			this.inventory[2] = inHand;
+			break;
+		case 'right-d':
+			this.inventory[0] = this.inventory[3];
+			this.inventory[3] = inHand;
+			break;
+		case 'down':
+			this.inventory[0] = this.inventory[4];
+			this.inventory[4] = inHand;
+			break;
+		case 'left-d':
+			this.inventory[0] = this.inventory[5];
+			this.inventory[5] = inHand;
+			break;
+		case 'left-u':
+			this.inventory[0] = this.inventory[6];
+			this.inventory[6] = inHand;
+			break;
 	}
 };
 Player.prototype.getNearbyTile = function(relativePos) {
