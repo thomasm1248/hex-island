@@ -155,7 +155,7 @@ Player.nextAction = function(player) {
 	player.actionQueue.splice(0, 1);
 	if(
 		player.getNearbyTile(v(0,0)).type === 'S' ||
-		action !== 'wait' && player.getNearbyTile(directions[action]).type === 'S'
+		action !== 'special' && player.getNearbyTile(directions[action]).type === 'S'
 	) {
 		setTimeout(Player.finishAction, config.shrubMovementCost, player, action);
 	} else {
@@ -166,7 +166,7 @@ Player.finishAction = function(player, action) {
 	// Schedule next action
 	setTimeout(Player.nextAction, config.basicActionCooldown, player);
 	// Complete current action
-	if(action === 'wait' || !player.canMove(action)) return;
+	if(action === 'special' || !player.canMove(action)) return;
 	player.pos = addV(player.pos, directions[action]);
 };
 
