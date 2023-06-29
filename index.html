@@ -92,6 +92,7 @@ var smoothShift;
 var map;
 var playersOnline = 0;
 var gameTime;
+var inventoryMode = false;
 var entities = [];
 
 // Util functions
@@ -387,6 +388,9 @@ window.onkeydown = function(e) {
 		case 88://x
 			takeAction("cancel");
 			break;
+		case 70://f
+			socket.emit('inventory');
+			break;
 	}
 };
 function startButtonClicked() {
@@ -454,6 +458,9 @@ socket.on('character-in-use', function(numPlayers) {
 	document.getElementById('start-button').disabled = false;
 	// Alert user
 	// todo add GUI alert
+});
+socket.on('update-inventory-mode', function(isItOn) {
+	inventoryMode = isItOn;
 });
 
 // States

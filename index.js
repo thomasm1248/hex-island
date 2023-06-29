@@ -75,6 +75,7 @@ function Player(x, y, name, socket) {
 	this.actionQueue = [];
 	this.actionInProgress = false;
 	this.inventory = ['', '', '', '', '', '', ''];
+	this.inventoryMode = false;
 }
 Player.prototype.swapInventoryItems = function(direction) {
 	var inHand = this.inventory[0];
@@ -302,6 +303,8 @@ io.on('connection', (socket) => {
 	socket.on('disconnect', () => {
 		// Check if player has a character loaded
 		if(player === undefined) return;
+		// Exit player out of inventory mode
+		player.inventoryMode = false;
 		// Update count of active players
 		playersOnline--;
 		io.emit('players-online', playersOnline);
@@ -323,6 +326,14 @@ io.on('connection', (socket) => {
 		if(!player.actionInProgress) {
 			Player.nextAction(player);
 		}
+	});
+	// Setup inventory toggle action
+	socket.on('inventory', function() {
+		// Check if player has a character loaded
+		if(player === undefined) return;
+		// Toggle inventory mode
+		player.inventoryMode = !player.inventoryMode;
+		socket.emit('update-inventory-mode', player.inventoryMode);
 	});
 	// Setup client tile request system
 	socket.on('request-tile', function(pos) {
