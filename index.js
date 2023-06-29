@@ -216,7 +216,12 @@ for(var x = 0; x < config.mapSize; x++) {
 	for(var y = 0; y < config.mapSize; y++) {
 		var line = data[x*config.mapSize + y];
 		line = line.split(',');
-		map.setTile(x, y, line[0], line[1]);
+		// Interpret all herbs as nettle
+		var d = {};
+		if(line[0] === 'H') {
+			d = {h: 'n'}; // herb: nettle
+		}
+		map.setTile(x, y, line[0], line[1], {}, d);
 	}
 }
 console.log("Finish reading map data");
