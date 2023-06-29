@@ -65,6 +65,133 @@ var directions = { // List of vectors for each direction
 	"right-d": v(0,1),
 	"right-u": v(1,0)
 };
+function updatePlayerMaps(tile) {
+	for(var i = 0; i < players.length; i++) {
+		if(players[i].socket !== undefined && hexDist(tile, players[i].pos) <= config.loadDist) {
+			players[i].socket.emit('tile', tile);
+		}
+	}
+}
+
+// Lookup tables
+var action2InventoryIndex = {
+	'up': 1,
+	'right-u': 2,
+	'right-d': 3,
+	'down': 4,
+	'left-d': 5,
+	'left-u': 6
+};
+var craftingRecipes = {
+	// Rock processing
+	'small rock, flint': [
+		{p: 1, o: ['small rock', 'flint']},
+		{p: 1, o: ['small rock', 'flint', 'flint chip']},
+		{p: 1, o: ['small rock', 'spear head', 'flint chip']}],
+	'small rock, spear head': [
+		{p: 1, o: ['small rock', 'spear head']},
+		{p: 1, o: ['small rock', 'spear head', 'flint chip']},
+		{p: 1, o: ['small rock', 'flint chip']}],
+	'rock, rock': [
+		{p: 1, o: ['rock', 'rock']},
+		{p: 1, o: ['rock', 'chopping tool']}],
+	'rock, chopping tool': [
+		{p: 1, o: ['rock', 'chopping tool']},
+		{p: 1, o: ['rock', 'hand axe']}],
+	'hand axe, flat rock': [
+		{p: 1, o: ['hand axe', 'flat rock']},
+		{p: 1, o: ['axe head', 'flat rock']}],
+	// Nettle cordage
+	'flint chip, nettle': [
+		{p: 1, o: ['flint chip', 'nettle fiber']}],
+	'nettle fiber, nettle fiber': [
+		{p: 1, o: ['cord']}],
+	'cord, cord': [
+		{p: 1, o: ['rope']}],
+	'rope, ': [
+		{p: 1, o: ['cord', 'cord']}],
+	// Branch processing
+	'hand axe, branch': [
+		{p: 1, o: ['hand axe', 'stick']},
+		{p: 1, o: ['hand axe', 'small stick']},
+		{p: 1, o: ['hand axe', 'staff']}],
+	'axe head, branch': [
+		{p: 1, o: ['axe head', 'stick']},
+		{p: 1, o: ['axe head', 'small stick']},
+		{p: 1, o: ['axe head', 'staff']}],
+	// Spear
+	'spear head, staff': [
+		{p: 1, o: ['staff with spear head']}],
+	'staff, spear head': [
+		{p: 1, o: ['staff with spear head']}],
+	'staff with spear head, ': [
+		{p: 1, o: ['staff', 'spear head']}],
+	'cord, staff with spear head': [
+		{p: 1, o: ['spear']}],
+	'spear, ': [
+		{p: 1, o: ['staff with spear head', 'cord']}],
+	// Sharpen a staff
+	'staff, flat rock': [
+		{p: 1, o: ['staff', 'flat rock']},
+		{p: 1, o: ['sharpened staff', 'flat rock']}],
+	// Stone axe
+	'axe head, stick': [
+		{p: 1, o: ['stick with axe head']}],
+	'stick, axe head': [
+		{p: 1, o: ['stick with axe head']}],
+	'stick with axe head, ': [
+		{p: 1, o: ['stick', 'axe head']}],
+	'cord, stick with axe head': [
+		{p: 1, o: ['stone axe']}],
+	'stone axe, ': [
+		{p: 1, o: ['stick with axe head', 'cord']}],
+	// Re-sharpening stone axe
+	'chipped stone axe, flat rock': [
+		{p: 1, o: ['stone axe', 'flat rock']}],
+	// Recycling broken handle of stone axe
+	'hand axe, broken handle': [
+		{p: 1, o: ['hand axe', 'small stick']}],
+	'axe head, broken handle': [
+		{p: 1, o: ['axe head', 'small stick']}],
+	// Use hand axe to split sticks into smaller sticks
+	'hand axe, stick': [
+		{p: 1, o: ['hand axe', 'small stick', 'small stick']}],
+	// Bow drill for starting fires
+	'cord, small stick': [
+		{p: 1, o: ['small bow']}],
+	'small bow, ': [
+		{p: 1, o: ['small stick', 'cord']}],
+	'small bow, small stick': [
+		{p: 1, o: ['bow drill']}],
+	'small stick, small bow': [
+		{p: 1, o: ['bow drill']}],
+	'bow drill, ': [
+		{p: 1, o: ['small bow', 'stick']}],
+	// Fire board
+	'chopping tool, small stick': [
+		{p: 1, o: ['chopping tool', 'fire board']}],
+	'chopping tool, stick': [
+		{p: 1, o: ['chopping tool', 'fire board']}],
+	// Combining bow drill with fire board
+	'bow drill, fire board': [
+		{p: 1, o: ['bow drill with fire board']}],
+	'bow drill with fire board, ': [
+		{p: 1, o: ['bow drill', 'fire board']}],
+	// Processing bark to make tinder
+	'rock, bark': [
+		{p: 1, o: ['rock', 'bark']},
+		{p: 1, o: ['rock', 'bark tinder']}],
+	// Start a fire
+	'bow drill with fire board, dry grass': [
+		{p: 1, o: ['bow drill with fire board', 'dry grass']},
+		{p: 1, o: ['bow drill with fire board', 'smoking tinder']}],
+	'bow drill with fire board, dry leaves': [
+		{p: 1, o: ['bow drill with fire board', 'dry leaves']},
+		{p: 1, o: ['bow drill with fire board', 'smoking tinder']}],
+	'bow drill with fire board, bark tinder': [
+		{p: 1, o: ['bow drill with fire board', 'bark tinder']},
+		{p: 1, o: ['bow drill with fire board', 'smoking tinder']}]
+};
 
 // A player character
 function Player(x, y, name, socket) {
@@ -79,31 +206,16 @@ function Player(x, y, name, socket) {
 }
 Player.prototype.swapInventoryItems = function(direction) {
 	var inHand = this.inventory[0];
-	switch(direction) {	
-		case 'up':
-			this.inventory[0] = this.inventory[1];
-			this.inventory[1] = inHand;
-			break;
-		case 'right-u':
-			this.inventory[0] = this.inventory[2];
-			this.inventory[2] = inHand;
-			break;
-		case 'right-d':
-			this.inventory[0] = this.inventory[3];
-			this.inventory[3] = inHand;
-			break;
-		case 'down':
-			this.inventory[0] = this.inventory[4];
-			this.inventory[4] = inHand;
-			break;
-		case 'left-d':
-			this.inventory[0] = this.inventory[5];
-			this.inventory[5] = inHand;
-			break;
-		case 'left-u':
-			this.inventory[0] = this.inventory[6];
-			this.inventory[6] = inHand;
-			break;
+	var index = action2InventoryIndex[direction];
+	this.inventory[0] = this.inventory[index];
+	this.inventory[index] = inHand;
+};
+Player.prototype.getItem = function(item) {
+	for(var i = 0; i < this.inventory.length; i++) {
+		if(this.inventory[i] === '') {
+			this.inventory[i] = item;
+			return;
+		}
 	}
 };
 Player.prototype.getNearbyTile = function(relativePos) {
@@ -154,21 +266,147 @@ Player.nextAction = function(player) {
 	player.actionInProgress = true;
 	var action = player.actionQueue[0];
 	player.actionQueue.splice(0, 1);
-	if(
-		player.getNearbyTile(v(0,0)).type === 'S' ||
-		action !== 'special' && player.getNearbyTile(directions[action]).type === 'S'
-	) {
-		setTimeout(Player.finishAction, config.shrubMovementCost, player, action);
+	if(player.inventoryMode) {
+		Player.finishInventoryAction(player, action);
 	} else {
 		Player.finishAction(player, action);
 	}
+};
+Player.finishInventoryAction = function(player, action) {
+	// Schedule next action
+	setTimeout(Player.nextAction, config.basicActionCooldown, player);
+	// Check if hand item is prepped for crafting/dropping
+	if(player.handItemPrepped) { // todo finish all this
+		// Craft or drop
+		player.handItemPrepped = false;
+		if(action === 'special') {
+			player.inventory[0] = '';
+		} else {
+			var in2Index = action2InventoryIndex[action];
+			var in1 = player.inventory[0];
+			var in2 = player.inventory[in2Index];
+			var input = in1 + ', ' + in2;
+			if(craftingRecipes[input] === undefined) {
+				return;
+			}
+			var possibleOutputs = craftingRecipes[input];
+			var totalWeights = 0;
+			for(var i = 0; i < possibleOutputs.length; i++) {
+				totalWeights += possibleOutputs[i].p;
+			}
+			var selector = Math.random() * totalWeights;
+			for(var i = 0; i < possibleOutputs.length; i++) {
+				if(selector < possibleOutputs[i].p) {
+					var output = possibleOutputs[i].o;
+					player.inventory[0] = output[0];
+					if(output[1] === undefined) {
+						player.inventory[in2Index] = '';
+					} else {
+						player.inventory[in2Index] = output[1];
+					}
+					if(output[2] !== undefined) {
+						player.getItem(output[2]);
+					}
+					break;
+				}
+				selector -= possibleOutputs[i].p;
+			}
+		}
+	} else {
+		// Swap or prep
+		if(action === 'special') {
+			player.handItemPrepped = true;
+		} else {
+			player.swapInventoryItems(action);
+		}
+	}
+	player.socket.emit('inventory', player.inventory);
 };
 Player.finishAction = function(player, action) {
 	// Schedule next action
 	setTimeout(Player.nextAction, config.basicActionCooldown, player);
 	// Complete current action
-	if(action === 'special' || !player.canMove(action)) return;
-	player.pos = addV(player.pos, directions[action]);
+	if(action === 'special') {
+		var currentTile = map.getTile(player.pos.x, player.pos.y);
+		switch(player.inventory[0]) {
+			case '': // bare hand
+				if(false) { // todo check if items are on the ground
+				} else {
+					switch(currentTile.type) {
+						case 'G':
+							player.getItem('dry grass');
+							break;
+						case 'U':
+							player.getItem('dry leaves');
+							break;
+						case 'R':
+							player.getItem(
+								['rock', 'small rock', 'flat rock', 'flint']
+								[Math.floor(Math.random() * 4)]
+							);
+							break;
+						case 'H':
+							if(currentTile.data.h === 'n') {
+								player.getItem('nettle');
+								currentTile.type = 'G';
+								delete currentTile.data.h;
+								updatePlayerMaps(currentTile);
+							}
+							break;
+					}
+				}
+				break;
+			case 'flint chip':
+				switch(currentTile.type) {
+					case 'H':
+						if(currentTile.data.h === 'n') {
+							player.getItem('nettle');
+							currentTile.type = 'G';
+							delete currentTile.data.h;
+							updatePlayerMaps(currentTile);
+						}
+						break;
+				}
+				break;
+		}
+		player.socket.emit('inventory', player.inventory);
+	} else if(!player.canMove(action)) {
+		var destTilePos = addV(player.pos, directions[action]);
+		var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
+		if(destinationTile.type = 'T') {
+			// Action: collect resources from tree
+			switch(player.inventory[0]) {
+				case 'chopping tool':
+					player.getItem('bark');
+					break;
+				case 'hand axe':
+					player.getItem('branch');
+					break;
+				case 'axe head':
+					player.getItem('branch');
+					if(Math.random() < 1/5) player.inventory[0] = 'hand axe';
+					break;
+				case 'stone axe':
+					if(Math.random() < 1/10) {
+						destinationTile.type = 'U';
+						updatePlayerMaps(destinationTile);
+					}
+					if(Math.random() < 1/3) player.inventory[0] = 'chipped stone axe';
+					if(Math.random() < 1/50) player.inventory[0] = 'broken handle';
+					break;
+				case 'chipped stone axe':
+					if(Math.random() < 1/12) {
+						destinationTile.type = 'U';
+						updatePlayerMaps(destinationTile);
+					}
+					if(Math.random() < 1/15) player.inventory[0] = 'broken handle';
+					break;
+			}
+			player.socket.emit('inventory', player.inventory);
+		}
+	} else {
+		player.pos = addV(player.pos, directions[action]);
+	}
 };
 
 // The world map
@@ -339,6 +577,10 @@ io.on('connection', (socket) => {
 		// Toggle inventory mode
 		player.inventoryMode = !player.inventoryMode;
 		socket.emit('update-inventory-mode', player.inventoryMode);
+		// Clear action queue to prevent player from moving while inventorying
+		player.actionQueue = [];
+		// Reset prep flag so it doesn't carry over between crafting sessions
+		player.handItemPrepped = false; // todo set up system that allows player to know whether they're prepped
 	});
 	// Setup client tile request system
 	socket.on('request-tile', function(pos) {

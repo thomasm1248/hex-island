@@ -463,6 +463,9 @@ socket.on('character-in-use', function(numPlayers) {
 socket.on('update-inventory-mode', function(isItOn) {
 	inventoryMode = isItOn;
 });
+socket.on('inventory', function(updatedInventory) {
+	character.inventory = updatedInventory;
+});
 
 // States
 function playing() {
