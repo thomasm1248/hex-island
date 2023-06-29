@@ -175,6 +175,7 @@ function drawMap() {
 		ctx.fillText("Day: " + gameTime.day + "  Hour: " + gameTime.hour, 10, 80);
 		ctx.fillText("Tile: " + map.getCamTile(0,0).type, 10, 95);
 		ctx.fillText("Online: " + playersOnline, 10, 110);
+		ctx.fillText("Inventory: " + character.inventory, 10, 125);
 	}
 	// Move to center of screen
 	ctx.translate(canvas.width/2, canvas.height/2);
