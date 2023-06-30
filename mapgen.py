@@ -5,7 +5,6 @@ import random as r
 # Presets
 size = 1000
 baseHeight = 30
-falloffRadius = size / 2 * (3**.5 / 2)
 # Hills and valleys
 mountainNoiseFreq = 0.030
 mountainNoiseSize = 80# might have to lower after adding roughness noise
@@ -13,8 +12,10 @@ mountainNoiseThinned = 5
 # Biome Noise
 biomeNoiseFreq = 0.03
 # Calculated
+falloffRadius = ((size / 4)**2 * 2)**.5
 mountainNoiseThinning = 1 / falloffRadius**2 * (mountainNoiseSize - mountainNoiseThinned)
 falloffStrength = 1 / falloffRadius**2 * (baseHeight + mountainNoiseThinned)
+stretch = 3**.5
 # Foliage
 numberOfTrees = m.floor(size**2 / 3)
 
@@ -58,7 +59,7 @@ def getMountainNoise(p, d):
 	return rawNoise * maxHeight
 def getHeight1(x, y):
 	pos = hexCoords(x - size/2, y - size/2)
-	distSquared = pos.x**2 + pos.y**2
+	distSquared = (pos.x / stretch)**2 + pos.y**2
 	# Get mointain noise
 	mountainNoise = getMountainNoise(pos, distSquared)
 	# Build island shape
