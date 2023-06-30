@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<style>
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+input {
+	position: absolute;
+	top: 100px;
+	left: 100px;
+}
+
+canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+body {
+	overflow: hidden;
+}
+
+</style>
+<body>
+<canvas id='canvas'></canvas>
+<input id='file-input' type='file' onchange='readText(this)'/>
+<script>
+
+var config = {
+	mapSize: 1000
+};
+var map;
+
+var canvas = document.getElementById('canvas');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+var ctx = canvas.getContext('2d');
+var tileSize = Math.min(
+	canvas.height / config.mapSize,
+	canvas.width / Math.sqrt(3) * 2 / config.mapSize
+);
+
+// Util functions
+function v(x, y) {
+	return {
+		x: x,
+		y: y
+	};
+}
+function addV(a, b) {
+	return v(a.x + b.x, a.y + b.y);
+}
+function subV(a, b) {
+	return v(a.x - b.x, a.y - b.y);
+}
+var hexX = v(Math.cos(-Math.PI/6), Math.sin(-Math.PI/6));
+var hexY = v(Math.cos(Math.PI/6), Math.sin(Math.PI/6));
+function hexCoords(x, y) {
+	x *= tileSize;
+	y *= tileSize;
+	return v(x*hexX.x + y*hexY.x, x*hexX.y + y*hexY.y);
+}
+function hexTranslate(x, y) {
+	var coords = hexCoords(x, y);
+	ctx.translate(coords.x, coords.y);
+}
+
+function Map() {
+	this.tiles = [];
+}
+Map.prototype.setTile = function(x, y, type, height, hiddenData={}, data={}) {
+	this.tiles[x][y] = {
+		x: x,
+		y: y,
+		type: type,
+		height: height,
+		data: data,
+		hiddenData: hiddenData
+	};
+};
+Map.prototype.getTile = function(x, y) {
+	if(x < 0 || y < 0 || x >= this.tiles.length || y >= this.tiles[x].length) {
+		// Make map act like everything off the map is made of water
+		return {
+			x: x,
+			y: y,
+			height: 0,
+			type: 'W',
+			data: {}
+		};
+	} else {
+		return this.tiles[x][y];
+	}
+};
+
+function drawMap() {
+	// Draw black background
+	ctx.fillStyle = 'black';
+	// Draw tiles
+	ctx.save();
+	ctx.translate(0, canvas.height/2);
+	for(var y = 0; y < config.mapSize; y++) {
+		for(var x = 0; x < config.mapSize; x++) {
+			ctx.save();
+			var tile = map.getTile(x, y);
+			var color;
+			switch(tile.type) {
+				case "W":
+					color = "#172836";
+					break;
+				case "D":
+					color = "#6e4e31";
+					break;
+				case "N":
+					color = "#fbedab";
+					break;
+				case "G":
+					color = "#69b42e";
+					break;
+				case "S":
+					color = "#2b4e10";
+					break;
+				case 'T':
+					color = "#40301c";
+					break;
+				case 'R':
+					color = "#2a2a2a";
+					break;
+				case 'O':
+					color = "#404040";
+					break;
+				case 'U':
+					color = '#23290f';
+					break;
+				case 'H':
+					color = '#5f7a13';
+					break;
+			}
+			hexTranslate(x, y);
+			ctx.fillStyle = color;
+			ctx.fillRect(0,0,1,1);
+			ctx.restore();
+		}
+	}
+	ctx.restore();
+}
+
+function loadMap(text) {
+	data = text.split('\n');
+	map = new Map();
+	for(var x = 0; x < config.mapSize; x++) {
+		map.tiles.push([]);
+		for(var y = 0; y < config.mapSize; y++) {
+			var line = data[x*config.mapSize + y];
+			line = line.split(',');
+			// Interpret all herbs as nettle
+			var d = {};
+			if(line[0] === 'H') {
+				d = {h: 'n'}; // herb: nettle
+			}
+			map.setTile(x, y, line[0], line[1], {}, d);
+		}
+	}
+	drawMap();
+}
+
+function readTextFile(file)
+{
+    var rawFile = new XMLHttpRequest();
+    rawFile.open("GET", file, false);
+    rawFile.onreadystatechange = function ()
+    {
+        if(rawFile.readyState === 4)
+        {
+            if(rawFile.status === 200 || rawFile.status == 0)
+            {
+                var allText = rawFile.responseText;
+                alert(allText);
+            }
+        }
+    }
+    rawFile.send(null);
+}
+
+var reader = new FileReader();
+function readText(that){
+	document.getElementById('file-input').style.display = 'none';
+	if(that.files && that.files[0]){
+		var reader = new FileReader();
+		reader.onload = function (e) {
+			var output=e.target.result;
+			loadMap(output);
+		};//end onload()
+		reader.readAsText(that.files[0]);
+	}//end if html5 filelist support
+}
+
+</script>
+</body>
