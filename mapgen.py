@@ -91,14 +91,13 @@ print('Generating terrain')
 for x in range(0, size):
 	tiles.append([])
 	for y in range(0, size):
-		# Default: grassy field
-		terrain = r.choices(
-			['G', 'S', 'H', 'D', 'R'],
-			weights=[7, 2, 0.3, 1, 0.2]
-			)[0]
 		# Prepare biome data
 		height = getHeight1(x, y)
 		biome = getBiomeNoise(x, y)
+		# Randomize heights as the tiles get higher
+		if height >= 40:
+			roughness = (height - 40) / 10
+			height += r.random() * roughness
 		# Ocean
 		if height < 0:
 			height = 0
@@ -109,16 +108,20 @@ for x in range(0, size):
 		# Stone mountain tops
 		elif not fadeBiome(60, height + 10 * biome, 70):
 			terrain = 'O'
-			height += r.random() * 1.5
 		# Rocks near mountain tops
 		elif not fadeBiome(45, height + 10 * biome, 55):
 			terrain = 'R'
-			height += r.random()
 		# Forests
 		elif fadeBiome(-0.2, biome, -0.17):
 			terrain = r.choices(
 				['U', 'D', 'S', 'H', 'R'],
 				weights=[10, 5, 1, 0.2, 1]
+				)[0]
+		# Default: grassy field
+		else:
+			terrain = r.choices(
+				['G', 'S', 'H', 'D', 'R'],
+				weights=[7, 2, 0.3, 1, 0.2]
 				)[0]
 		# Build tile
 		height = m.floor(height)
