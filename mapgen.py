@@ -112,7 +112,7 @@ for x in range(0, size):
 		elif not fadeBiome(45, height + 10 * biome, 55):
 			terrain = 'R'
 		# Forests
-		elif fadeBiome(-0.2, biome, -0.17):
+		elif not fadeBiome(-0.2, biome, -0.17):
 			terrain = r.choices(
 				['U', 'D', 'S', 'H', 'R'],
 				weights=[10, 5, 1, 0.2, 1]
