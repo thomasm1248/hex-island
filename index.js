@@ -85,21 +85,21 @@ var action2InventoryIndex = {
 var craftingRecipes = {
 	// Rock processing
 	'small rock, flint': [
-		{p: 1, o: ['small rock', 'flint']},
-		{p: 1, o: ['small rock', 'flint', 'flint chip']},
+		{p: 3, o: ['small rock', 'flint']},
+		{p: 2, o: ['small rock', 'flint', 'flint chip']},
 		{p: 1, o: ['small rock', 'spear head', 'flint chip']}],
 	'small rock, spear head': [
-		{p: 1, o: ['small rock', 'spear head']},
-		{p: 1, o: ['small rock', 'spear head', 'flint chip']},
+		{p: 3, o: ['small rock', 'spear head']},
+		{p: 2, o: ['small rock', 'spear head', 'flint chip']},
 		{p: 1, o: ['small rock', 'flint chip']}],
 	'rock, rock': [
-		{p: 1, o: ['rock', 'rock']},
+		{p: 2, o: ['rock', 'rock']},
 		{p: 1, o: ['rock', 'chopping tool']}],
 	'rock, chopping tool': [
-		{p: 1, o: ['rock', 'chopping tool']},
+		{p: 5, o: ['rock', 'chopping tool']},
 		{p: 1, o: ['rock', 'hand axe']}],
 	'hand axe, flat rock': [
-		{p: 1, o: ['hand axe', 'flat rock']},
+		{p: 5, o: ['hand axe', 'flat rock']},
 		{p: 1, o: ['axe head', 'flat rock']}],
 	// Nettle cordage
 	'flint chip, nettle': [
@@ -132,7 +132,7 @@ var craftingRecipes = {
 		{p: 1, o: ['staff with spear head', 'cord']}],
 	// Sharpen a staff
 	'staff, flat rock': [
-		{p: 1, o: ['staff', 'flat rock']},
+		{p: 3, o: ['staff', 'flat rock']},
 		{p: 1, o: ['sharpened staff', 'flat rock']}],
 	// Stone axe
 	'axe head, stick': [
@@ -183,10 +183,10 @@ var craftingRecipes = {
 		{p: 1, o: ['rock', 'bark tinder']}],
 	// Start a fire
 	'bow drill with fire board, dry grass': [
-		{p: 1, o: ['bow drill with fire board', 'dry grass']},
+		{p: 3, o: ['bow drill with fire board', 'dry grass']},
 		{p: 1, o: ['bow drill with fire board', 'smoking tinder']}],
 	'bow drill with fire board, dry leaves': [
-		{p: 1, o: ['bow drill with fire board', 'dry leaves']},
+		{p: 6, o: ['bow drill with fire board', 'dry leaves']},
 		{p: 1, o: ['bow drill with fire board', 'smoking tinder']}],
 	'bow drill with fire board, bark tinder': [
 		{p: 1, o: ['bow drill with fire board', 'bark tinder']},
