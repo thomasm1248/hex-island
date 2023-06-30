@@ -10,7 +10,7 @@ mountainNoiseFreq = 0.030
 mountainNoiseSize = 80# might have to lower after adding roughness noise
 mountainNoiseThinned = 5
 # Biome Noise
-biomeNoiseFreq = 0.03
+biomeNoiseFreq = 0.05
 # Calculated
 falloffRadius = ((size / 4)**2 * 2)**.5
 mountainNoiseThinning = 1 / falloffRadius**2 * (mountainNoiseSize - mountainNoiseThinned)
@@ -68,7 +68,7 @@ def getHeight1(x, y):
 	totalHeight = base + mountainNoise
 	return totalHeight
 def getBiomeNoise(x, y):
-	pos = hexCoords(x - size/2, y - size/2)
+	pos = hexCoords(x, y)
 	pos = scaleV(pos, biomeNoiseFreq)
 	return sn.noise2(pos.x, pos.y)
 def fadeBiome(a, h, b):
@@ -106,7 +106,7 @@ for x in range(0, size):
 		elif fadeBiome(1, height, 1.5):
 			terrain = 'N'
 		# Stone mountain tops
-		elif not fadeBiome(60, height + 10 * biome, 70):
+		elif not fadeBiome(55, height + 10 * biome, 90):
 			terrain = 'O'
 		# Rocks near mountain tops
 		elif not fadeBiome(45, height + 10 * biome, 55):
