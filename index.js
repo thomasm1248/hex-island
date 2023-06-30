@@ -373,7 +373,7 @@ Player.finishAction = function(player, action) {
 	} else if(!player.canMove(action)) {
 		var destTilePos = addV(player.pos, directions[action]);
 		var destinationTile = map.getTile(destTilePos.x, destTilePos.y);
-		if(destinationTile.type = 'T') {
+		if(destinationTile.type === 'T') {
 			// Action: collect resources from tree
 			switch(player.inventory[0]) {
 				case 'chopping tool':
